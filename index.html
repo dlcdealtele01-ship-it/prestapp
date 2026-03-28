@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PrestApp Cloud + Interés Visible</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .modal-overlay { background: rgba(0,0,0,0.85); display: none; position: fixed; top:0; left:0; width:100%; height:100%; z-index: 100; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <!-- CONFIGURACIÓN NUBE (RELLENA TUS DATOS AQUÍ) -->
+    <script>
+        const SUPABASE_URL = "https://jppaqmfagtbvkxjkrdfd.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwcGFxbWZhZ3Ridmt4amtyZGZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MTYyMTEsImV4cCI6MjA5MDI5MjIxMX0.ME7iJkLB7v1Jg3KhL2a-FoU1bCNhA1GR8vQDBt3tNdI";
+    </script>
+
+    <header class="bg-slate-900 text-white p-6 sticky top-0 z-40 shadow-xl flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-extrabold tracking-tighter">PREST<span class="text-indigo-400">APP</span> PRO</h1>
+            <p id="cloud-status" class="text-[9px] text-gray-400 uppercase font-bold tracking-widest leading-none italic">Sincronizando...</p>
+        </div>
+        <div id="sync-indicator" class="h-2 w-2 bg-yellow-500 rounded-full"></div>
+    </header>
+
+    <div id="main" class="max-w-md mx-auto p-4 pb-32"></div>
+
+    <!-- MODAL DE RECIBO -->
+    <div id="modal-recibo" class="modal-overlay p-4">
+        <div class="flex flex-col items-center w-full max-w-xs">
+            <div id="recibo-visual" class="p-8 bg-white text-black shadow-2xl mb-6 border-t-8 border-slate-900 w-full text-center italic" style="font-family: monospace;">
+                <h2 class="font-bold border-b pb-2">RECIBO DE PAGO</h2>
+                <div class="text-left text-[11px] my-4 space-y-1 font-bold uppercase">
+                    <p>FECHA: <span id="r-fecha"></span></p>
+                    <p>CLIENTE: <span id="r-cliente"></span></p>
+                </div>
+                <p class="text-[10px] uppercase">Monto Recibido</p>
+                <h1 class="text-4xl font-bold my-2">$<span id="r-monto"></span></h1>
+                <p>-------------------------</p>
+                <p class="text-[10px] uppercase font-bold">Saldo Restante</p>
+                <p class="text-xl font-bold">$<span id="r-saldo"></span></p>
+                <p class="mt-8 text-[9px] font-bold">¡Gracias por su puntualidad!</p>
+            </div>
+            <div class="flex gap-2 w-full">
+                <button onclick="cerrarModal()" class="flex-1 bg-slate-700 text-white py-4 rounded-xl text-[10px] font-bold uppercase">Cerrar</button>
+                <button onclick="compartirImagen()" class="flex-[2] bg-green-600 text-white py-4 rounded-xl text-[10px] font-bold shadow-lg uppercase">Enviar Recibo</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = [];
+        let vista = 'dashboard';
+        let subVista = 'activos';
+        let idActivo = null;
+
+        async function fetchCloud() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/prestapp_data?user_id=eq.usuario_unico&select=datos`, {
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+                });
+                const json = await res.json();
+                if (json[0]) db = json[0].datos;
+                document.getElementById('cloud-status').innerText = "Nube Conectada";
+                document.getElementById('sync-indicator').className = "h-2 w-2 bg-green-500 rounded-full";
+            } catch (e) {
+                document.getElementById('cloud-status').innerText = "Error de Conexión";
+                document.getElementById('sync-indicator').className = "h-2 w-2 bg-red-500 rounded-full";
+                const local = localStorage.getItem('PRESTAPP_LOCAL');
+                if (local) db = JSON.parse(local);
+            }
+            render();
+        }
+
+        async function syncCloud() {
+            localStorage.setItem('PRESTAPP_LOCAL', JSON.stringify(db));
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/prestapp_data?user_id=eq.usuario_unico`, {
+                    method: 'PATCH',
+                    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ datos: db })
+                });
+                document.getElementById('sync-indicator').className = "h-2 w-2 bg-green-500 rounded-full";
+            } catch (e) {
+                document.getElementById('sync-indicator').className = "h-2 w-2 bg-red-500 rounded-full animate-pulse";
+            }
+        }
+
+        function navegar(v, id = null) { vista = v; idActivo = id; render(); }
+        function cambiarSubVista(sv) { subVista = sv; render(); }
+
+        function handleForm(e) {
+            e.preventDefault();
+            const nom = document.getElementById('f-nombre').value;
+            const sal = parseFloat(document.getElementById('f-saldo').value);
+            const tas = parseFloat(document.getElementById('f-tasa').value);
+            if (idActivo) {
+                const p = db.find(x => x.id === idActivo);
+                p.nombre = nom; p.saldo = sal; p.tasa = tas;
+                if(p.saldo > 0) p.estado = 'activo';
+            } else {
+                db.push({ id: Date.now(), nombre: nom, saldo: sal, tasa: tas, estado: 'activo', historial: [] });
+            }
+            syncCloud(); navegar('dashboard');
+        }
+
+        function registrarAbono() {
+            const input = document.getElementById('monto-abono');
+            const monto = parseFloat(input.value);
+            if (isNaN(monto) || monto <= 0) return;
+            const p = db.find(x => x.id === idActivo);
+            const interes = p.saldo * p.tasa;
+            p.saldo = (p.saldo + interes) - monto;
+            if(p.saldo <= 0.05) { p.saldo = 0; p.estado = 'pagado'; }
+            p.historial.unshift({ fecha: new Date().toLocaleDateString(), monto, saldoDespues: p.saldo });
+            input.value = "";
+            syncCloud(); render();
+        }
+
+        function render() {
+            const container = document.getElementById('main');
+            let h = "";
+
+            if (vista === 'dashboard') {
+                h += `<button onclick="navegar('formulario')" class="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl mb-6 shadow-xl active:scale-95 transition-all">+ NUEVO PRÉSTAMO</button>`;
+                h += `
+                    <div class="flex gap-2 mb-6 bg-slate-200 p-1 rounded-xl">
+                        <button onclick="cambiarSubVista('activos')" class="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest ${subVista === 'activos' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}">Activos</button>
+                        <button onclick="cambiarSubVista('pagados')" class="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest ${subVista === 'pagados' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}">Finalizados</button>
+                    </div>
+                `;
+
+                const lista = db.filter(p => (subVista === 'pagados' ? p.estado === 'pagado' : p.estado === 'activo' || !p.estado));
+                
+                lista.forEach(p => {
+                    const interesQ = p.saldo * p.tasa;
+                    h += `
+                        <div onclick="navegar('detalle', ${p.id})" class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm mb-4 flex justify-between items-center border-l-4 ${p.estado === 'pagado' ? 'border-l-green-400' : 'border-l-indigo-500 active:scale-95 transition-all'}">
+                            <div>
+                                <p class="font-bold text-slate-800 text-base leading-tight">${p.nombre}</p>
+                                <p class="text-[10px] text-red-500 font-bold uppercase mt-1 tracking-tighter">Interés Q: $${interesQ.toFixed(2)}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xl font-black ${p.estado === 'pagado' ? 'text-green-500' : 'text-slate-900'}">${p.estado === 'pagado' ? 'PAGADO' : '$'+p.saldo.toFixed(2)}</p>
+                                <p class="text-[9px] text-gray-400 font-bold uppercase">Saldo</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                if (lista.length === 0) h += `<p class="text-center text-slate-400 mt-10 text-xs italic font-medium">No hay registros aquí.</p>`;
+
+            } else if (vista === 'formulario') {
+                const e = idActivo ? db.find(x => x.id === idActivo) : null;
+                h += `
+                    <div class="bg-white p-8 rounded-3xl shadow-xl">
+                        <h2 class="text-xl font-bold mb-6 text-center uppercase tracking-tighter">${idActivo ? 'Editar' : 'Nuevo'} Cliente</h2>
+                        <form onsubmit="handleForm(event)" class="space-y-6">
+                            <input id="f-nombre" value="${e?e.nombre:''}" class="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold" placeholder="Nombre completo" required>
+                            <input id="f-saldo" type="number" step="0.01" value="${e?e.saldo:''}" class="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold" placeholder="Saldo actual $" required>
+                            <select id="f-tasa" class="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold">
+                                <option value="0.10" ${e&&e.tasa==0.1?'selected':''}>10% Quincenal</option>
+                                <option value="0.15" ${e&&e.tasa==0.15?'selected':''}>15% Quincenal</option>
+                            </select>
+                            <div class="flex gap-4"><button type="button" onclick="navegar('dashboard')" class="flex-1 font-bold text-gray-400 uppercase text-[10px]">Cancelar</button>
+                            <button type="submit" class="flex-[2] bg-indigo-600 text-white py-4 rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar Datos</button></div>
+                        </form>
+                    </div>
+                `;
+            } else if (vista === 'detalle') {
+                const p = db.find(x => x.id === idActivo);
+                const interesHoy = p.saldo * p.tasa;
+                h += `
+                    <div class="flex justify-between items-center mb-6"><button onclick="navegar('dashboard')" class="text-slate-900 font-bold text-xs uppercase tracking-widest">← Volver</button>
+                    <div class="flex gap-2"><button onclick="navegar('formulario', ${p.id})" class="bg-slate-200 px-4 py-2 rounded-xl text-[10px] font-bold">Editar</button>
+                    <button onclick="if(confirm('¿Eliminar?')){db=db.filter(x=>x.id!==${p.id});syncCloud();navegar('dashboard');}" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl text-[10px] font-bold uppercase italic">Eliminar</button></div></div>
+                    
+                    <div class="bg-slate-900 p-10 rounded-[2.5rem] text-white shadow-2xl mb-8 text-center">
+                        <p class="text-indigo-400 text-[10px] font-bold uppercase tracking-widest mb-1 italic">${p.nombre}</p>
+                        <h2 class="text-5xl font-black ${p.estado === 'pagado' ? 'text-green-400' : ''}">${p.estado === 'pagado' ? 'PAGADO' : '$'+p.saldo.toFixed(2)}</h2>
+                        <div class="mt-6 flex justify-between border-t border-slate-800 pt-6">
+                            <div class="text-left"><p class="text-[9px] opacity-50 uppercase font-bold">Tasa</p><p class="text-sm font-bold">${p.tasa*100}%</p></div>
+                            <div class="text-right"><p class="text-[9px] text-red-400 uppercase font-bold">Cobrar Interés</p><p class="text-lg font-black text-red-400">$${interesHoy.toFixed(2)}</p></div>
+                        </div>
+                    </div>
+
+                    ${p.estado === 'activo' || !p.estado ? `
+                        <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-8 border border-indigo-50">
+                            <p class="text-[10px] font-bold text-gray-400 mb-4 uppercase tracking-widest text-center italic">Registrar Cobro</p>
+                            <div class="flex gap-3"><input id="monto-abono" type="number" placeholder="Monto $" class="flex-1 p-4 bg-slate-50 rounded-xl font-bold outline-none border focus:border-indigo-500">
+                            <button onclick="registrarAbono()" class="bg-green-600 text-white px-8 rounded-xl font-bold shadow-lg">PAGAR</button></div>
+                        </div>
+                    ` : ''}
+
+                    <div class="space-y-3 pb-20">
+                        ${p.historial.map(reg => `
+                            <div class="bg-white p-4 rounded-2xl flex justify-between items-center border border-slate-50 shadow-sm">
+                                <div><p class="text-[9px] text-gray-400 font-bold uppercase leading-none mb-1">${reg.fecha}</p><p class="font-bold text-slate-800">Recibido: $${reg.monto.toFixed(2)}</p></div>
+                                <button onclick="mostrarRecibo('${p.nombre}', ${reg.monto}, ${reg.saldoDespues}, '${reg.fecha}')" class="bg-indigo-50 p-3 rounded-xl active:scale-90 transition-transform">
+                                    <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" class="w-5 h-5 opacity-70">
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            container.innerHTML = h;
+        }
+
+        // RECIBOS (Se mantienen igual)
+        function mostrarRecibo(n, m, s, f) {
+            document.getElementById('r-cliente').innerText = n;
+            document.getElementById('r-monto').innerText = m.toFixed(2);
+            document.getElementById('r-saldo').innerText = s.toFixed(2);
+            document.getElementById('r-fecha').innerText = f;
+            document.getElementById('modal-recibo').style.display = 'flex';
+        }
+        function cerrarModal() { document.getElementById('modal-recibo').style.display = 'none'; }
+        async function compartirImagen() {
+            const ticket = document.getElementById('recibo-visual');
+            const canvas = await html2canvas(ticket);
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], 'recibo.png', { type: 'image/png' });
+                if (navigator.share) await navigator.share({ files: [file], title: 'Recibo', text: 'Aquí está su comprobante de pago.' });
+            });
+        }
+
+        window.onload = fetchCloud;
+    </script>
+</body>
+</html>
