@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrestApp Cloud v23 - Edición de Pagos</title>
+    <title>PrestApp Cloud v24 - Capital y Completados</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
@@ -23,13 +23,13 @@
 <body class="bg-slate-50 text-slate-900">
 
     <div id="app-root">
-        <div class="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse uppercase tracking-widest text-xs">Cargando...</div>
+        <div class="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse uppercase tracking-widest text-xs">Sincronizando Capital...</div>
     </div>
 
     <div id="modal-recibo" class="modal-overlay p-4">
         <div class="flex flex-col items-center w-full max-w-xs">
             <div id="recibo-visual" class="p-8 bg-white text-black shadow-2xl mb-6 border-t-8 border-slate-900 w-full text-center italic" style="font-family: monospace;">
-                <h2 class="font-bold border-b pb-2 text-sm uppercase text-slate-400">Recibo Oficial</h2>
+                <h2 class="font-bold border-b pb-2 text-sm uppercase text-slate-400">Comprobante</h2>
                 <div class="text-left text-[11px] my-4 space-y-1 font-bold uppercase">
                     <p>FECHA: <span id="r-fecha"></span></p>
                     <p>CLIENTE: <span id="r-cliente"></span></p>
@@ -38,7 +38,7 @@
                 <p>-------------------------</p>
                 <p class="text-[10px] uppercase font-bold text-slate-500">Saldo Restante</p>
                 <p class="text-xl font-bold">$<span id="r-saldo"></span></p>
-                <p class="mt-8 text-[8px] opacity-40 italic">Software v23</p>
+                <p class="mt-8 text-[8px] opacity-40 italic">GierelAxel.dev v24</p>
             </div>
             <div class="flex gap-2 w-full">
                 <button onclick="cerrarModal()" class="flex-1 bg-slate-700 text-white py-4 rounded-xl text-[10px] font-black uppercase">Cerrar</button>
@@ -57,7 +57,7 @@
         let isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
 
         function obtenerDatosMora(p) {
-            if (p.estado === 'pagado') return { esMoroso: false, multiplicador: 1 };
+            if (p.estado === 'pagado' || p.saldo <= 0) return { esMoroso: false, multiplicador: 1 };
             const hoy = new Date();
             const ultimaFechaStr = p.historial.length > 0 ? p.historial[0].fecha : new Date(p.id).toLocaleDateString('es-ES');
             const [d, m, a] = ultimaFechaStr.split('/').map(Number);
@@ -67,7 +67,7 @@
             if (multiplicador < 1) multiplicador = 1;
             const dia = hoy.getDate();
             const moraQ1 = (dia >= 17 && dia <= 30 && ultimaFecha.getDate() < 15);
-            const moraQ2 = ((dia >= 2 && dia < 17) && (ultimaFecha.getDate() < 28 && ultimaFecha.getMonth() !== hoy.getMonth()));
+            const moraQ2 = ((dia >= 2 && dia < 17) && (ultimaFecha.getDate() < 28 && (ultimaFecha.getMonth() !== hoy.getMonth() || ultimaFecha.getFullYear() !== hoy.getFullYear())));
             return { esMoroso: (moraQ1 || moraQ2 || diffDias > 20), multiplicador: multiplicador };
         }
 
@@ -86,7 +86,7 @@
                 isLoggedIn = true;
                 sessionStorage.setItem('isLoggedIn', 'true');
                 fetchCloud();
-            } else { alert("Error"); }
+            } else { alert("Error de acceso"); }
         }
 
         function logout() { sessionStorage.clear(); location.reload(); }
@@ -99,7 +99,7 @@
                 });
                 const json = await res.json();
                 if (json && json[0]) db = json[0].datos || [];
-            } catch (e) { console.error("Cloud Error"); }
+            } catch (e) { }
             render();
         }
 
@@ -124,6 +124,7 @@
             if (idActivo) {
                 const p = db.find(x => x.id === idActivo);
                 p.nombre = nom; p.saldo = sal; p.tasa = tas;
+                p.estado = p.saldo > 0 ? 'activo' : 'pagado';
             } else {
                 db.push({ id: Date.now(), nombre: nom, saldo: sal, tasa: tas, estado: 'activo', historial: [] });
             }
@@ -134,11 +135,10 @@
             const p = db.find(x => x.id === idActivo);
             const abono = p.historial[idx];
             document.getElementById('monto-abono').value = abono.monto;
-            // Convertir dd/mm/yyyy a yyyy-mm-dd para el input date
             const parts = abono.fecha.split('/');
             document.getElementById('fecha-abono').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
             editandoPagoIndex = idx;
-            document.getElementById('btn-cobrar').innerText = "Actualizar Pago";
+            document.getElementById('btn-cobrar').innerText = "Guardar Cambio";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -150,7 +150,6 @@
             if (isNaN(m) || m <= 0) return;
             const p = db.find(x => x.id === idActivo);
 
-            // Si estamos editando, primero revertimos el pago anterior
             if (editandoPagoIndex !== null) {
                 const viejo = p.historial[editandoPagoIndex];
                 p.saldo = (p.saldo + viejo.monto) - (viejo.interesEnEseMomento || 0);
@@ -168,7 +167,8 @@
             }
 
             p.saldo = (p.saldo + interesAplicado) - m;
-            if(p.saldo <= 0.05) { p.saldo = 0; p.estado = 'pagado'; }
+            p.estado = p.saldo <= 0.05 ? 'pagado' : 'activo';
+            if(p.saldo <= 0.05) p.saldo = 0;
             
             p.historial.unshift({ 
                 fecha: fechaFinal, 
@@ -183,7 +183,7 @@
         }
 
         function eliminarAbono(idPrestamo, indexAbono) {
-            if(confirm('¿Eliminar este pago y revertir el saldo?')) {
+            if(confirm('¿Revertir este pago?')) {
                 const p = db.find(x => x.id === idPrestamo);
                 const abono = p.historial[indexAbono];
                 p.saldo = (p.saldo + abono.monto) - (abono.interesEnEseMomento || 0);
@@ -196,7 +196,7 @@
         function render() {
             const root = document.getElementById('app-root');
             if (!isLoggedIn) {
-                root.innerHTML = `<div class="min-h-screen flex items-center justify-center p-6 bg-slate-900 animate-fade">
+                root.innerHTML = `<div class="min-h-screen flex items-center justify-center p-6 bg-slate-900">
                     <div class="w-full max-w-sm bg-white p-10 rounded-[3rem] shadow-2xl text-center">
                         <h1 class="text-4xl font-black italic uppercase text-slate-900">PREST<span class="text-emerald-500">APP</span></h1>
                         <form onsubmit="login(event)" class="mt-8 space-y-4 text-left font-bold">
@@ -210,9 +210,10 @@
             }
 
             const activos = db.filter(p => p.estado !== 'pagado');
+            const completados = db.filter(p => p.estado === 'pagado');
             const capCalle = activos.reduce((acc, p) => acc + p.saldo, 0);
 
-            let h = `<header class="bg-slate-900 text-white p-6 sticky top-0 z-40 flex justify-between items-center">
+            let h = `<header class="bg-slate-900 text-white p-6 sticky top-0 z-40 flex justify-between items-center border-b border-white/5">
                 <h1 class="font-black italic text-xl uppercase tracking-tighter">PREST<span class="text-emerald-500">APP</span></h1>
                 <button onclick="logout()" class="text-[9px] font-black text-red-400 border border-red-900 px-3 py-1 rounded-lg uppercase">Salir</button>
             </header>
@@ -221,15 +222,19 @@
             if (vista === 'dashboard') {
                 h += `
                 <div class="bg-slate-800 p-6 rounded-[2.5rem] mb-6 shadow-md border-b-4 border-indigo-500">
-                    <p class="text-[9px] uppercase font-black text-indigo-300 italic mb-1">Capital en Calle</p>
-                    <p class="text-3xl font-black text-white">$${capCalle.toFixed(2)}</p>
+                    <p class="text-[9px] uppercase font-black text-indigo-300 italic mb-1 tracking-widest">Capital Total en Calle</p>
+                    <p class="text-3xl font-black text-white leading-none">$${capCalle.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
                 </div>
-                <button onclick="navegar('formulario')" class="w-full bg-indigo-600 text-white font-black py-5 rounded-[2rem] mb-8 text-[11px] uppercase tracking-widest shadow-xl">+ Nuevo</button>
+
+                <button onclick="navegar('formulario')" class="w-full bg-indigo-600 text-white font-black py-5 rounded-[2rem] mb-8 text-[11px] uppercase tracking-widest shadow-xl">+ Nuevo Préstamo</button>
+                
                 <div class="flex gap-2 mb-6 bg-slate-200 p-1 rounded-2xl font-black text-[10px] uppercase italic">
                     <button onclick="subVista='activos';render()" class="flex-1 py-3 rounded-xl ${subVista==='activos'?'bg-white text-indigo-600 shadow-sm':'text-slate-500'}">Activos</button>
                     <button onclick="subVista='morosos';render()" class="flex-1 py-3 rounded-xl ${subVista==='morosos'?'bg-white text-red-600 shadow-sm':'text-slate-500'}">Morosos</button>
                 </div>`;
-                let lista = subVista === 'morosos' ? db.filter(p => p.estado !== 'pagado' && obtenerDatosMora(p).esMoroso) : db.filter(p => p.estado !== 'pagado');
+
+                let lista = subVista === 'morosos' ? activos.filter(p => obtenerDatosMora(p).esMoroso) : activos;
+                
                 lista.forEach(p => {
                     const { esMoroso } = obtenerDatosMora(p);
                     h += `<div onclick="navegar('detalle', ${p.id})" class="bg-white p-5 rounded-3xl shadow-sm mb-4 flex justify-between items-center border-l-[6px] ${esMoroso?'border-l-red-500':'border-l-indigo-500'} cursor-pointer">
@@ -237,13 +242,26 @@
                         <p class="text-xl font-black text-slate-900">$${p.saldo.toFixed(2)}</p>
                     </div>`;
                 });
+
+                // SECCIÓN DE PAGOS COMPLETADOS
+                if (completados.length > 0) {
+                    h += `<div class="mt-12 mb-4 border-t pt-8 border-slate-200">
+                        <p class="text-[10px] text-slate-400 uppercase font-black italic tracking-widest ml-2">Historial de Completados</p>
+                    </div>`;
+                    completados.forEach(p => {
+                        h += `<div onclick="navegar('detalle', ${p.id})" class="bg-white/50 p-4 rounded-3xl border border-dashed border-slate-300 mb-3 flex justify-between items-center opacity-60 grayscale cursor-pointer">
+                            <div class="font-black text-slate-500 uppercase text-xs">${p.nombre}</div>
+                            <div class="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[8px] font-black uppercase italic">Pagado ✓</div>
+                        </div>`;
+                    });
+                }
             } else if (vista === 'formulario') {
                 const e = idActivo ? db.find(x => x.id === idActivo) : null;
                 h += `<div class="bg-white p-8 rounded-[3rem] shadow-xl space-y-6">
-                    <h2 class="text-xl font-black text-center uppercase italic">${idActivo?'Editar Cliente':'Nuevo Préstamo'}</h2>
+                    <h2 class="text-xl font-black text-center uppercase italic">${idActivo?'Editar':'Nuevo'}</h2>
                     <form onsubmit="handleForm(event)" class="space-y-4 font-black text-[10px] uppercase">
                         <input id="f-nombre" value="${e?e.nombre:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Nombre" required>
-                        <input id="f-saldo" type="number" step="0.01" value="${e?e.saldo:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Saldo $" required>
+                        <input id="f-saldo" type="number" step="0.01" value="${e?e.saldo:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Saldo Inicial $" required>
                         <select id="f-tasa" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200">
                             <option value="0.05" ${e&&e.tasa==0.05?'selected':''}>5%</option>
                             <option value="0.10" ${e&&e.tasa==0.10?'selected':''}>10%</option>
@@ -260,57 +278,58 @@
                 const interesSugerido = p.saldo * (p.tasa * multiplicador);
 
                 h += `<div class="flex justify-between items-center mb-6 font-black text-[10px] uppercase">
-                    <button onclick="navegar('dashboard')" class="bg-slate-200 px-4 py-2 rounded-xl">← Inicio</button>
+                    <button onclick="navegar('dashboard')" class="bg-slate-200 px-4 py-2 rounded-xl">← Volver</button>
                     <div class="flex gap-2">
-                        <button onclick="navegar('formulario', ${p.id})" class="text-indigo-600 p-2 bg-indigo-50 rounded-lg italic">Editar Préstamo</button>
-                        <button onclick="if(confirm('¿Borrar?')){db=db.filter(x=>x.id!==${p.id});syncCloud();navegar('dashboard');}" class="text-red-500 p-2 bg-red-50 rounded-lg italic">Borrar</button>
+                        <button onclick="navegar('formulario', ${p.id})" class="text-indigo-600 p-2 bg-indigo-50 rounded-lg italic">Editar</button>
+                        <button onclick="if(confirm('¿Eliminar cliente?')){db=db.filter(x=>x.id!==${p.id});syncCloud();navegar('dashboard');}" class="text-red-500 p-2 bg-red-50 rounded-lg italic">Borrar</button>
                     </div>
                 </div>
-                <div class="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl text-center mb-4 overflow-hidden relative">
-                    <p class="text-indigo-400 text-[10px] font-black uppercase mb-1">${p.nombre}</p>
+                <div class="${p.estado==='pagado'?'bg-emerald-600':'bg-slate-900'} p-8 rounded-[2.5rem] text-white shadow-2xl text-center mb-4 relative overflow-hidden transition-colors">
+                    <p class="text-white/60 text-[10px] font-black uppercase mb-1">${p.nombre}</p>
                     <h2 class="text-5xl font-black tracking-tighter">$${p.saldo.toFixed(2)}</h2>
                 </div>
-                ${esMoroso ? `<div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-4 flex items-center gap-3">
+                ${esMoroso ? `<div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-4 flex items-center gap-3 animate-fade">
                     <div class="bg-amber-500 text-white p-2 rounded-full text-lg">⚠️</div>
                     <div>
-                        <p class="text-[9px] font-black uppercase text-amber-600 mb-1">Cálculo de Mora (${multiplicador}x)</p>
-                        <p class="text-[11px] font-bold text-slate-800">Interés sugerido: <span class="text-red-600">$${interesSugerido.toFixed(2)}</span></p>
+                        <p class="text-[9px] font-black uppercase text-amber-600 mb-1 leading-none">Cálculo de Mora (${multiplicador}x)</p>
+                        <p class="text-[11px] font-bold text-slate-800 leading-tight italic">Interés si aplicas: <span class="text-red-600">$${interesSugerido.toFixed(2)}</span></p>
                     </div>
                 </div>` : ''}
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-md mb-6 space-y-4">
                     <div class="flex justify-between items-center px-1">
-                         <label class="text-[10px] font-black uppercase text-slate-400 italic">Aplicar Intereses</label>
+                         <label class="text-[10px] font-black uppercase text-slate-400 italic">Interés por Mora</label>
                          <label class="switch"><input type="checkbox" id="mora-switch"><span class="slider"></span></label>
                     </div>
                     <div class="space-y-2">
                         <input id="monto-abono" type="number" placeholder="Monto $" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none border focus:border-indigo-500">
                         <div class="flex gap-2">
                             <input id="fecha-abono" type="date" class="flex-1 p-4 bg-slate-50 rounded-2xl font-bold text-[10px] outline-none border text-slate-500">
-                            <button id="btn-cobrar" onclick="registrarAbono()" class="flex-1 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg italic">Cobrar</button>
+                            <button id="btn-cobrar" onclick="registrarAbono()" class="flex-1 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg italic tracking-widest">Cobrar</button>
                         </div>
                     </div>
                 </div>
                 <div class="space-y-4 pb-20">
-                    <p class="text-[10px] text-slate-400 uppercase font-black ml-2 italic tracking-widest">Pagos Realizados</p>
+                    <p class="text-[10px] text-slate-400 uppercase font-black ml-2 italic tracking-widest leading-none">Historial de Cobros</p>
                     ${p.historial.map((reg, idx) => `
                     <div class="bg-white p-4 rounded-3xl flex justify-between items-center shadow-sm border border-slate-100">
-                        <div>
-                            <p class="text-[8px] text-slate-400 font-black uppercase mb-1">${reg.fecha} ${reg.moraX > 0 ? `<span class="text-red-500">[MOROSIDAD]</span>` : ''}</p>
-                            <p class="text-lg font-black text-emerald-600 italic leading-none">$${reg.monto.toFixed(2)}</p>
-                            <p class="text-[8px] text-slate-500 font-bold mt-1">Interés: $${(reg.interesEnEseMomento || 0).toFixed(2)}</p>
+                        <div class="leading-none">
+                            <p class="text-[8px] text-slate-400 font-black uppercase mb-2">${reg.fecha} ${reg.moraX > 0 ? `<span class="text-red-500">[+MORA]</span>` : ''}</p>
+                            <p class="text-lg font-black text-emerald-600 italic">$${reg.monto.toFixed(2)}</p>
+                            <p class="text-[8px] text-slate-400 font-bold mt-2">Saldo tras pago: $${(reg.saldoDespues || 0).toFixed(2)}</p>
                         </div>
-                        <div class="flex gap-1.5">
-                            <button onclick="prepararEdicionPago(${idx})" class="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
-                                <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        <div class="flex gap-2">
+                            <button onclick="prepararEdicionPago(${idx})" class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                                <svg class="w-4 h-4 text-indigo-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                             </button>
-                            <button onclick="eliminarAbono(${p.id}, ${idx})" class="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center">
-                                <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            <button onclick="eliminarAbono(${p.id}, ${idx})" class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                                <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                             </button>
-                            <button onclick="mostrarRecibo('${p.nombre}', ${reg.monto}, ${reg.saldoDespues}, '${reg.fecha}')" class="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center">
-                                <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" class="w-5 h-5">
+                            <button onclick="mostrarRecibo('${p.nombre}', ${reg.monto}, ${reg.saldoDespues}, '${reg.fecha}')" class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                                <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" class="w-6 h-6">
                             </button>
                         </div>
                     </div>`).join('')}
+                    ${p.historial.length === 0 ? '<p class="text-center text-slate-300 font-bold text-[10px] uppercase py-8 tracking-[0.2em]">Sin movimientos registrados</p>' : ''}
                 </div>`;
             }
             root.innerHTML = h + "</div>";
