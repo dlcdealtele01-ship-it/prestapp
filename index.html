@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrestApp Cloud v21 - Mora Dinámica</title>
+    <title>PrestApp Cloud v23 - Edición de Pagos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
@@ -12,26 +12,24 @@
         .modal-overlay { background: rgba(0,0,0,0.85); display: none; position: fixed; inset: 0; z-index: 100; justify-content: center; align-items: center; }
         .animate-fade { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .card-loan:active { transform: scale(0.96); background-color: #f8fafc; }
-        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .switch { position: relative; display: inline-block; width: 42px; height: 22px; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .4s; border-radius: 20px; }
         input:checked + .slider { background-color: #ef4444; }
         .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider:before { transform: translateX(20px); }
+        input:checked + .slider:before { transform: translateX(22px); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
 
     <div id="app-root">
-        <div class="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse uppercase tracking-widest text-xs">Sincronizando...</div>
+        <div class="min-h-screen flex items-center justify-center font-black text-indigo-600 animate-pulse uppercase tracking-widest text-xs">Cargando...</div>
     </div>
 
     <div id="modal-recibo" class="modal-overlay p-4">
         <div class="flex flex-col items-center w-full max-w-xs">
             <div id="recibo-visual" class="p-8 bg-white text-black shadow-2xl mb-6 border-t-8 border-slate-900 w-full text-center italic" style="font-family: monospace;">
-                <h2 class="font-bold border-b pb-2 text-sm uppercase italic tracking-tighter text-slate-400">Recibo de Pago</h2>
+                <h2 class="font-bold border-b pb-2 text-sm uppercase text-slate-400">Recibo Oficial</h2>
                 <div class="text-left text-[11px] my-4 space-y-1 font-bold uppercase">
                     <p>FECHA: <span id="r-fecha"></span></p>
                     <p>CLIENTE: <span id="r-cliente"></span></p>
@@ -40,11 +38,11 @@
                 <p>-------------------------</p>
                 <p class="text-[10px] uppercase font-bold text-slate-500">Saldo Restante</p>
                 <p class="text-xl font-bold">$<span id="r-saldo"></span></p>
-                <p class="mt-8 text-[8px] opacity-40 italic uppercase tracking-widest text-slate-400">GierelAxel.dev Software</p>
+                <p class="mt-8 text-[8px] opacity-40 italic">Software v23</p>
             </div>
             <div class="flex gap-2 w-full">
-                <button onclick="cerrarModal()" class="flex-1 bg-slate-700 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest">Cerrar</button>
-                <button onclick="compartirImagen()" class="flex-[2] bg-green-600 text-white py-4 rounded-xl text-[10px] font-black shadow-lg uppercase tracking-widest">Enviar WhatsApp</button>
+                <button onclick="cerrarModal()" class="flex-1 bg-slate-700 text-white py-4 rounded-xl text-[10px] font-black uppercase">Cerrar</button>
+                <button onclick="compartirImagen()" class="flex-[2] bg-green-600 text-white py-4 rounded-xl text-[10px] font-black shadow-lg uppercase">WhatsApp</button>
             </div>
         </div>
     </div>
@@ -55,31 +53,21 @@
         const SECRET_TAG = "mis_datos_privados_777";
         const MASTER_HASH = "898492087612f1228490a02059080708f75b871900f6e69317094054a3233824";
 
-        let db = [], vista = 'dashboard', subVista = 'activos', idActivo = null;
+        let db = [], vista = 'dashboard', subVista = 'activos', idActivo = null, editandoPagoIndex = null;
         let isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
 
-        // LÓGICA DE CÁLCULO DE CICLOS DE MORA
         function obtenerDatosMora(p) {
             if (p.estado === 'pagado') return { esMoroso: false, multiplicador: 1 };
-            
             const hoy = new Date();
             const ultimaFechaStr = p.historial.length > 0 ? p.historial[0].fecha : new Date(p.id).toLocaleDateString('es-ES');
             const [d, m, a] = ultimaFechaStr.split('/').map(Number);
             const ultimaFecha = new Date(a, m - 1, d);
-
-            // Diferencia en meses y días para calcular cuántas quincenas han pasado
-            const diffTiempo = Math.abs(hoy - ultimaFecha);
-            const diffDias = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24));
-            
-            // Regla del 15 y 30: Un ciclo es aprox cada 15 días
+            const diffDias = Math.ceil(Math.abs(hoy - ultimaFecha) / (1000 * 60 * 60 * 24));
             let multiplicador = Math.floor(diffDias / 15);
             if (multiplicador < 1) multiplicador = 1;
-
-            // Detección de lista de morosos (Día 17 o Día 2)
             const dia = hoy.getDate();
             const moraQ1 = (dia >= 17 && dia <= 30 && ultimaFecha.getDate() < 15);
-            const moraQ2 = ((dia >= 2 && dia < 17) && ultimaFecha.getDate() < 28);
-            
+            const moraQ2 = ((dia >= 2 && dia < 17) && (ultimaFecha.getDate() < 28 && ultimaFecha.getMonth() !== hoy.getMonth()));
             return { esMoroso: (moraQ1 || moraQ2 || diffDias > 20), multiplicador: multiplicador };
         }
 
@@ -111,7 +99,7 @@
                 });
                 const json = await res.json();
                 if (json && json[0]) db = json[0].datos || [];
-            } catch (e) { console.error("Cloud error"); }
+            } catch (e) { console.error("Cloud Error"); }
             render();
         }
 
@@ -126,7 +114,7 @@
             } catch (e) { }
         }
 
-        function navegar(v, id = null) { vista = v; idActivo = id; render(); }
+        function navegar(v, id = null) { vista = v; idActivo = id; editandoPagoIndex = null; render(); }
 
         function handleForm(e) {
             e.preventDefault();
@@ -142,20 +130,36 @@
             syncCloud(); navegar('dashboard');
         }
 
+        function prepararEdicionPago(idx) {
+            const p = db.find(x => x.id === idActivo);
+            const abono = p.historial[idx];
+            document.getElementById('monto-abono').value = abono.monto;
+            // Convertir dd/mm/yyyy a yyyy-mm-dd para el input date
+            const parts = abono.fecha.split('/');
+            document.getElementById('fecha-abono').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            editandoPagoIndex = idx;
+            document.getElementById('btn-cobrar').innerText = "Actualizar Pago";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         function registrarAbono() {
             const inputMonto = document.getElementById('monto-abono');
             const inputFecha = document.getElementById('fecha-abono');
             const checkMora = document.getElementById('mora-switch');
-            
             const m = parseFloat(inputMonto.value);
             if (isNaN(m) || m <= 0) return;
-            
             const p = db.find(x => x.id === idActivo);
+
+            // Si estamos editando, primero revertimos el pago anterior
+            if (editandoPagoIndex !== null) {
+                const viejo = p.historial[editandoPagoIndex];
+                p.saldo = (p.saldo + viejo.monto) - (viejo.interesEnEseMomento || 0);
+                p.historial.splice(editandoPagoIndex, 1);
+            }
+
             const { multiplicador } = obtenerDatosMora(p);
-            
-            // Solo si el switch es activado por el usuario se aplica el multiplicador
             const factorFinal = (checkMora && checkMora.checked) ? multiplicador : 1;
-            const interesAplicado = p.saldo * (p.tasa * factorFinal);
+            const interesAplicado = (checkMora && checkMora.checked) ? (p.saldo * (p.tasa * factorFinal)) : 0;
             
             let fechaFinal = new Date().toLocaleDateString('es-ES');
             if (inputFecha && inputFecha.value) {
@@ -170,15 +174,16 @@
                 fecha: fechaFinal, 
                 monto: m, 
                 interesEnEseMomento: interesAplicado,
-                moraX: factorFinal,
+                moraX: (checkMora && checkMora.checked) ? factorFinal : 0,
                 saldoDespues: p.saldo 
             });
             
+            editandoPagoIndex = null;
             syncCloud(); render();
         }
 
         function eliminarAbono(idPrestamo, indexAbono) {
-            if(confirm('¿Revertir pago?')) {
+            if(confirm('¿Eliminar este pago y revertir el saldo?')) {
                 const p = db.find(x => x.id === idPrestamo);
                 const abono = p.historial[indexAbono];
                 p.saldo = (p.saldo + abono.monto) - (abono.interesEnEseMomento || 0);
@@ -193,8 +198,8 @@
             if (!isLoggedIn) {
                 root.innerHTML = `<div class="min-h-screen flex items-center justify-center p-6 bg-slate-900 animate-fade">
                     <div class="w-full max-w-sm bg-white p-10 rounded-[3rem] shadow-2xl text-center">
-                        <h1 class="text-4xl font-black italic uppercase tracking-tighter text-slate-900">PREST<span class="text-emerald-500">APP</span></h1>
-                        <form onsubmit="login(event)" class="mt-8 space-y-4 font-bold text-left">
+                        <h1 class="text-4xl font-black italic uppercase text-slate-900">PREST<span class="text-emerald-500">APP</span></h1>
+                        <form onsubmit="login(event)" class="mt-8 space-y-4 text-left font-bold">
                             <input id="user" type="text" class="w-full p-4 bg-slate-50 rounded-2xl border outline-none" placeholder="Usuario" required>
                             <input id="pass" type="password" class="w-full p-4 bg-slate-50 rounded-2xl border outline-none" placeholder="Contraseña" required>
                             <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-2xl uppercase text-[10px] tracking-widest font-black italic">Entrar</button>
@@ -216,7 +221,7 @@
             if (vista === 'dashboard') {
                 h += `
                 <div class="bg-slate-800 p-6 rounded-[2.5rem] mb-6 shadow-md border-b-4 border-indigo-500">
-                    <p class="text-[9px] uppercase font-black text-indigo-300 italic">Capital en Calle</p>
+                    <p class="text-[9px] uppercase font-black text-indigo-300 italic mb-1">Capital en Calle</p>
                     <p class="text-3xl font-black text-white">$${capCalle.toFixed(2)}</p>
                 </div>
                 <button onclick="navegar('formulario')" class="w-full bg-indigo-600 text-white font-black py-5 rounded-[2rem] mb-8 text-[11px] uppercase tracking-widest shadow-xl">+ Nuevo</button>
@@ -224,34 +229,27 @@
                     <button onclick="subVista='activos';render()" class="flex-1 py-3 rounded-xl ${subVista==='activos'?'bg-white text-indigo-600 shadow-sm':'text-slate-500'}">Activos</button>
                     <button onclick="subVista='morosos';render()" class="flex-1 py-3 rounded-xl ${subVista==='morosos'?'bg-white text-red-600 shadow-sm':'text-slate-500'}">Morosos</button>
                 </div>`;
-
                 let lista = subVista === 'morosos' ? db.filter(p => p.estado !== 'pagado' && obtenerDatosMora(p).esMoroso) : db.filter(p => p.estado !== 'pagado');
-
                 lista.forEach(p => {
                     const { esMoroso } = obtenerDatosMora(p);
-                    h += `
-                    <div onclick="navegar('detalle', ${p.id})" class="bg-white p-5 rounded-3xl shadow-sm mb-4 flex justify-between items-center border-l-[6px] ${esMoroso?'border-l-red-500':'border-l-indigo-500'} cursor-pointer">
-                        <div class="flex-1">
-                            <p class="font-black text-slate-800 uppercase text-sm">${p.nombre} ${esMoroso?'⚠️':''}</p>
-                            <p class="text-[9px] text-slate-400 font-black uppercase mt-1 italic">Interés: ${(p.tasa*100).toFixed(0)}%</p>
-                        </div>
+                    h += `<div onclick="navegar('detalle', ${p.id})" class="bg-white p-5 rounded-3xl shadow-sm mb-4 flex justify-between items-center border-l-[6px] ${esMoroso?'border-l-red-500':'border-l-indigo-500'} cursor-pointer">
+                        <div class="flex-1 font-black text-slate-800 uppercase text-sm">${p.nombre} ${esMoroso?'⚠️':''}<p class="text-[9px] text-slate-400 font-black uppercase mt-1 italic">${(p.tasa*100).toFixed(0)}% quincenal</p></div>
                         <p class="text-xl font-black text-slate-900">$${p.saldo.toFixed(2)}</p>
                     </div>`;
                 });
             } else if (vista === 'formulario') {
                 const e = idActivo ? db.find(x => x.id === idActivo) : null;
-                h += `
-                <div class="bg-white p-8 rounded-[3rem] shadow-xl space-y-6">
-                    <h2 class="text-xl font-black text-center uppercase italic">${idActivo?'Editar':'Nuevo'}</h2>
+                h += `<div class="bg-white p-8 rounded-[3rem] shadow-xl space-y-6">
+                    <h2 class="text-xl font-black text-center uppercase italic">${idActivo?'Editar Cliente':'Nuevo Préstamo'}</h2>
                     <form onsubmit="handleForm(event)" class="space-y-4 font-black text-[10px] uppercase">
-                        <input id="f-nombre" value="${e?e.nombre:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Cliente" required>
-                        <input id="f-saldo" type="number" step="0.01" value="${e?e.saldo:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Capital $" required>
+                        <input id="f-nombre" value="${e?e.nombre:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Nombre" required>
+                        <input id="f-saldo" type="number" step="0.01" value="${e?e.saldo:''}" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200" placeholder="Saldo $" required>
                         <select id="f-tasa" class="w-full p-4 bg-slate-50 rounded-2xl outline-none ring-1 ring-slate-200">
-                            <option value="0.05" ${e&&e.tasa==0.05?'selected':''}>5% Quincenal</option>
-                            <option value="0.10" ${e&&e.tasa==0.10?'selected':''}>10% Quincenal</option>
+                            <option value="0.05" ${e&&e.tasa==0.05?'selected':''}>5%</option>
+                            <option value="0.10" ${e&&e.tasa==0.10?'selected':''}>10%</option>
                         </select>
                         <div class="flex gap-4 pt-4">
-                            <button type="button" onclick="navegar('dashboard')" class="flex-1 text-slate-400 font-black uppercase">Cancelar</button>
+                            <button type="button" onclick="navegar('dashboard')" class="flex-1 text-slate-400 font-black">Atrás</button>
                             <button type="submit" class="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl shadow-lg uppercase">Guardar</button>
                         </div>
                     </form>
@@ -259,47 +257,58 @@
             } else if (vista === 'detalle') {
                 const p = db.find(x => x.id === idActivo);
                 const { esMoroso, multiplicador } = obtenerDatosMora(p);
-                h += `
-                <div class="flex justify-between items-center mb-6">
-                    <button onclick="navegar('dashboard')" class="font-black text-[10px] uppercase bg-slate-200 px-4 py-2 rounded-xl">← Atrás</button>
+                const interesSugerido = p.saldo * (p.tasa * multiplicador);
+
+                h += `<div class="flex justify-between items-center mb-6 font-black text-[10px] uppercase">
+                    <button onclick="navegar('dashboard')" class="bg-slate-200 px-4 py-2 rounded-xl">← Inicio</button>
                     <div class="flex gap-2">
-                        <button onclick="navegar('formulario', ${p.id})" class="text-indigo-600 text-[10px] font-black uppercase">Editar</button>
-                        <button onclick="if(confirm('¿Borrar?')){db=db.filter(x=>x.id!==${p.id});syncCloud();navegar('dashboard');}" class="text-red-500 text-[10px] font-black uppercase">Borrar</button>
+                        <button onclick="navegar('formulario', ${p.id})" class="text-indigo-600 p-2 bg-indigo-50 rounded-lg italic">Editar Préstamo</button>
+                        <button onclick="if(confirm('¿Borrar?')){db=db.filter(x=>x.id!==${p.id});syncCloud();navegar('dashboard');}" class="text-red-500 p-2 bg-red-50 rounded-lg italic">Borrar</button>
                     </div>
                 </div>
-                <div class="bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl text-center mb-8 relative overflow-hidden">
-                    ${esMoroso ? '<div class="absolute top-4 right-10 bg-red-600 text-[8px] px-3 py-1 rounded-full font-black animate-pulse uppercase italic">Mora Pendiente</div>' : ''}
-                    <p class="text-indigo-400 text-[10px] font-black uppercase mb-1 tracking-widest">${p.nombre}</p>
+                <div class="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl text-center mb-4 overflow-hidden relative">
+                    <p class="text-indigo-400 text-[10px] font-black uppercase mb-1">${p.nombre}</p>
                     <h2 class="text-5xl font-black tracking-tighter">$${p.saldo.toFixed(2)}</h2>
                 </div>
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-md mb-8 space-y-4">
-                    <div class="flex justify-between items-center px-2">
-                         <div class="leading-none">
-                            <label class="text-[9px] font-black uppercase text-slate-400 italic">Aplicar Mora Sugerida</label>
-                            <p class="text-[12px] font-black text-red-500 uppercase italic">Castigo: ${multiplicador}x Interés</p>
-                         </div>
+                ${esMoroso ? `<div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-4 flex items-center gap-3">
+                    <div class="bg-amber-500 text-white p-2 rounded-full text-lg">⚠️</div>
+                    <div>
+                        <p class="text-[9px] font-black uppercase text-amber-600 mb-1">Cálculo de Mora (${multiplicador}x)</p>
+                        <p class="text-[11px] font-bold text-slate-800">Interés sugerido: <span class="text-red-600">$${interesSugerido.toFixed(2)}</span></p>
+                    </div>
+                </div>` : ''}
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-md mb-6 space-y-4">
+                    <div class="flex justify-between items-center px-1">
+                         <label class="text-[10px] font-black uppercase text-slate-400 italic">Aplicar Intereses</label>
                          <label class="switch"><input type="checkbox" id="mora-switch"><span class="slider"></span></label>
                     </div>
                     <div class="space-y-2">
                         <input id="monto-abono" type="number" placeholder="Monto $" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none border focus:border-indigo-500">
                         <div class="flex gap-2">
                             <input id="fecha-abono" type="date" class="flex-1 p-4 bg-slate-50 rounded-2xl font-bold text-[10px] outline-none border text-slate-500">
-                            <button onclick="registrarAbono()" class="flex-1 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg italic">Cobrar</button>
+                            <button id="btn-cobrar" onclick="registrarAbono()" class="flex-1 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg italic">Cobrar</button>
                         </div>
                     </div>
                 </div>
-                <div class="space-y-3 pb-20">
-                    <p class="text-[10px] text-slate-400 uppercase font-black ml-2 mb-2 italic">Historial de Pagos</p>
+                <div class="space-y-4 pb-20">
+                    <p class="text-[10px] text-slate-400 uppercase font-black ml-2 italic tracking-widest">Pagos Realizados</p>
                     ${p.historial.map((reg, idx) => `
-                    <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
-                        <div class="leading-tight font-black">
-                            <p class="text-[8px] text-slate-400 uppercase mb-1">${reg.fecha} ${reg.moraX > 1 ? `<span class="text-red-600">[PENA ${reg.moraX}X]</span>` : ''}</p>
-                            <p class="text-[14px] italic text-emerald-600">$${reg.monto.toFixed(2)}</p>
-                            <p class="text-[7px] text-slate-400 uppercase">Interés cobrado: $${(reg.interesEnEseMomento || 0).toFixed(2)}</p>
+                    <div class="bg-white p-4 rounded-3xl flex justify-between items-center shadow-sm border border-slate-100">
+                        <div>
+                            <p class="text-[8px] text-slate-400 font-black uppercase mb-1">${reg.fecha} ${reg.moraX > 0 ? `<span class="text-red-500">[MOROSIDAD]</span>` : ''}</p>
+                            <p class="text-lg font-black text-emerald-600 italic leading-none">$${reg.monto.toFixed(2)}</p>
+                            <p class="text-[8px] text-slate-500 font-bold mt-1">Interés: $${(reg.interesEnEseMomento || 0).toFixed(2)}</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="eliminarAbono(${p.id}, ${idx})" class="p-2 bg-red-50 rounded-lg text-red-500 text-[9px] font-black">DEL</button>
-                            <button onclick="mostrarRecibo('${p.nombre}', ${reg.monto}, ${reg.saldoDespues}, '${reg.fecha}')" class="p-2 bg-slate-100 rounded-lg"><img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" class="w-4 h-4"></button>
+                        <div class="flex gap-1.5">
+                            <button onclick="prepararEdicionPago(${idx})" class="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                            <button onclick="eliminarAbono(${p.id}, ${idx})" class="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                            <button onclick="mostrarRecibo('${p.nombre}', ${reg.monto}, ${reg.saldoDespues}, '${reg.fecha}')" class="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center">
+                                <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" class="w-5 h-5">
+                            </button>
                         </div>
                     </div>`).join('')}
                 </div>`;
@@ -320,7 +329,7 @@
             const canvas = await html2canvas(ticket);
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], 'recibo.png', { type: 'image/png' });
-                if (navigator.share) await navigator.share({ files: [file], title: 'Recibo de Pago' });
+                if (navigator.share) await navigator.share({ files: [file], title: 'Recibo' });
             });
         }
         window.onload = fetchCloud;
