@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PrestApp Cloud v18 - Lógica Corregida</title>
+    <title>PrestApp Cloud v19 - Control de Mora</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
@@ -16,6 +16,13 @@
         .card-loan:active { transform: scale(0.96); background-color: #f8fafc; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .rayo { display: inline-block; transform: translateY(-2px); }
+        /* Toggle Switch para Mora */
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .4s; border-radius: 20px; }
+        input:checked + .slider { background-color: #ef4444; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -55,6 +62,25 @@
 
         let db = [], vista = 'dashboard', subVista = 'activos', idActivo = null;
         let isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+
+        // --- LÓGICA DE MORA ---
+        function verificarMora(p) {
+            if (p.estado === 'pagado') return false;
+            const hoy = new Date();
+            const dia = hoy.getDate();
+            const mesActual = hoy.getMonth();
+            
+            // Si no hay pagos, usamos la fecha de creación del préstamo
+            const ultimaFechaStr = p.historial.length > 0 ? p.historial[0].fecha : new Date(p.id).toLocaleDateString();
+            const [d, m, a] = ultimaFechaStr.split('/').map(Number);
+            const ultimaFecha = new Date(a, m - 1, d);
+
+            // Regla: 2 días después del 15 (día 17) o 2 días después del 30 (día 2 del mes siguiente)
+            const moraQuincena1 = (dia >= 17 && dia <= 30 && (ultimaFecha.getDate() < 15 || ultimaFecha.getMonth() < mesActual));
+            const moraQuincena2 = (dia >= 2 && dia < 17 && (ultimaFecha.getDate() < 28 && (ultimaFecha.getMonth() < mesActual || (ultimaFecha.getMonth() === 11 && mesActual === 0))));
+            
+            return moraQuincena1 || moraQuincena2;
+        }
 
         async function sha256(message) {
             const msgBuffer = new TextEncoder().encode(message);
@@ -119,24 +145,27 @@
             syncCloud(); navegar('dashboard');
         }
 
-        // --- LÓGICA DE PAGOS CORREGIDA ---
         function registrarAbono() {
             const input = document.getElementById('monto-abono');
+            const checkMora = document.getElementById('mora-switch');
             const m = parseFloat(input.value);
             if (isNaN(m) || m <= 0) return;
+            
             const p = db.find(x => x.id === idActivo);
+            const aplicarDoble = checkMora ? checkMora.checked : false;
             
-            // Calculamos el interés actual ANTES de aplicar el pago
-            const interesAplicado = p.saldo * p.tasa;
-            // El nuevo saldo es: (Saldo anterior + Interés) - Pago
+            // Tasa final (doble si el switch está activo)
+            const tasaEfectiva = aplicarDoble ? (p.tasa * 2) : p.tasa;
+            const interesAplicado = p.saldo * tasaEfectiva;
+            
             p.saldo = (p.saldo + interesAplicado) - m;
-            
             if(p.saldo <= 0.05) { p.saldo = 0; p.estado = 'pagado'; }
             
             p.historial.unshift({ 
                 fecha: new Date().toLocaleDateString(), 
                 monto: m, 
-                interesEnEseMomento: interesAplicado, // Guardamos cuánto interés se cobró aquí
+                interesEnEseMomento: interesAplicado,
+                moraAplicada: aplicarDoble,
                 saldoDespues: p.saldo 
             });
             
@@ -147,36 +176,9 @@
             if(confirm('¿Eliminar pago y revertir interés aplicado?')) {
                 const p = db.find(x => x.id === idPrestamo);
                 const abono = p.historial[indexAbono];
-                
-                // REVERSIÓN LÓGICA:
-                // Para volver atrás: Saldo actual + Pago realizado - Interés que se había sumado
                 p.saldo = (p.saldo + abono.monto) - (abono.interesEnEseMomento || 0);
-                
                 p.historial.splice(indexAbono, 1);
                 p.estado = p.saldo > 0 ? 'activo' : 'pagado';
-                
-                syncCloud(); render();
-            }
-        }
-
-        function editarAbono(idPrestamo, indexAbono) {
-            const p = db.find(x => x.id === idPrestamo);
-            const abonoOrig = p.historial[indexAbono];
-            const nuevoMonto = prompt("Nuevo monto del pago:", abonoOrig.monto);
-            
-            if (nuevoMonto !== null && !isNaN(parseFloat(nuevoMonto))) {
-                const m = parseFloat(nuevoMonto);
-                // Primero revertimos el viejo
-                p.saldo = (p.saldo + abonoOrig.monto) - (abonoOrig.interesEnEseMomento || 0);
-                // Ahora aplicamos el nuevo con el interés que correspondía
-                const interes = p.saldo * p.tasa;
-                p.saldo = (p.saldo + interes) - m;
-                
-                p.historial[indexAbono].monto = m;
-                p.historial[indexAbono].interesEnEseMomento = interes;
-                p.historial[indexAbono].saldoDespues = p.saldo;
-                p.estado = p.saldo <= 0.05 ? 'pagado' : 'activo';
-                
                 syncCloud(); render();
             }
         }
@@ -228,15 +230,21 @@
                 <button onclick="navegar('formulario')" class="w-full bg-indigo-600 text-white font-black py-5 rounded-[2rem] mb-8 text-[11px] uppercase tracking-widest shadow-xl">+ Nuevo Préstamo</button>
                 <div class="flex gap-2 mb-6 bg-slate-200 p-1 rounded-2xl font-black text-[10px] uppercase italic">
                     <button onclick="subVista='activos';render()" class="flex-1 py-3 rounded-xl ${subVista==='activos'?'bg-white text-indigo-600 shadow-sm':'text-slate-500'}">Activos</button>
+                    <button onclick="subVista='morosos';render()" class="flex-1 py-3 rounded-xl ${subVista==='morosos'?'bg-white text-red-600 shadow-sm':'text-slate-500'}">Morosos</button>
                     <button onclick="subVista='pagados';render()" class="flex-1 py-3 rounded-xl ${subVista==='pagados'?'bg-white text-indigo-600 shadow-sm':'text-slate-500'}">Pagados</button>
                 </div>`;
 
-                const lista = db.filter(p => (subVista === 'pagados' ? p.estado === 'pagado' : p.estado !== 'pagado'));
+                let lista = [];
+                if(subVista === 'pagados') lista = db.filter(p => p.estado === 'pagado');
+                else if(subVista === 'morosos') lista = db.filter(p => p.estado !== 'pagado' && verificarMora(p));
+                else lista = db.filter(p => p.estado !== 'pagado');
+
                 lista.forEach(p => {
+                    const mora = verificarMora(p);
                     h += `
-                    <div onclick="navegar('detalle', ${p.id})" class="card-loan bg-white p-5 rounded-3xl shadow-sm mb-4 flex justify-between items-center border border-slate-100 border-l-[6px] ${p.estado==='pagado'?'border-l-emerald-500':'border-l-indigo-500'} cursor-pointer">
+                    <div onclick="navegar('detalle', ${p.id})" class="card-loan bg-white p-5 rounded-3xl shadow-sm mb-4 flex justify-between items-center border border-slate-100 border-l-[6px] ${p.estado==='pagado'?'border-l-emerald-500':(mora?'border-l-red-500':'border-l-indigo-500')} cursor-pointer">
                         <div class="flex-1">
-                            <p class="font-black text-slate-800 uppercase tracking-tighter text-sm">${p.nombre}</p>
+                            <p class="font-black text-slate-800 uppercase tracking-tighter text-sm">${p.nombre} ${mora?'⚠️':''}</p>
                             <p class="text-[9px] text-red-500 font-black uppercase mt-1 italic leading-none">Interés: +$${(p.saldo * p.tasa).toFixed(2)}</p>
                         </div>
                         <div class="text-right">
@@ -268,6 +276,7 @@
                 </div>`;
             } else if (vista === 'detalle') {
                 const p = db.find(x => x.id === idActivo);
+                const esMora = verificarMora(p);
                 const intSugerido = p.saldo * p.tasa;
                 h += `
                 <div class="flex justify-between items-center mb-6">
@@ -277,7 +286,8 @@
                         <button onclick="if(confirm('¿Borrar?')){db=db.filter(x=>x.id!==${p.id});syncCloud();navegar('dashboard');}" class="text-red-500 px-4 py-2 text-[10px] font-black uppercase italic">Borrar</button>
                     </div>
                 </div>
-                <div class="bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl text-center mb-8">
+                <div class="bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl text-center mb-8 relative overflow-hidden">
+                    ${esMora ? '<div class="absolute top-4 right-10 bg-red-600 text-[8px] px-3 py-1 rounded-full font-black animate-bounce uppercase">Mora Detectada</div>' : ''}
                     <p class="text-indigo-400 text-[10px] font-black uppercase mb-1">${p.nombre}</p>
                     <h2 class="text-5xl font-black tracking-tighter ${p.estado==='pagado'?'text-emerald-400':''}">$${p.saldo.toFixed(2)}</h2>
                     <p class="text-[9px] text-slate-500 uppercase font-black mt-2 italic">Capital Actual</p>
@@ -287,22 +297,30 @@
                     </div>
                 </div>
                 ${p.estado!=='pagado' ? `
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-md mb-8 flex gap-3">
-                    <input id="monto-abono" type="number" placeholder="Monto del Pago $" class="flex-1 p-4 bg-slate-50 rounded-2xl font-black outline-none border focus:border-indigo-500">
-                    <button onclick="registrarAbono()" class="bg-emerald-600 text-white px-8 rounded-2xl font-black text-[10px] uppercase shadow-lg italic">Cobrar</button>
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-md mb-8">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                         <label class="text-[9px] font-black uppercase text-slate-400 italic">¿Aplicar Doble Interés (Mora)?</label>
+                         <label class="switch">
+                            <input type="checkbox" id="mora-switch" ${esMora?'checked':''}>
+                            <span class="slider"></span>
+                         </label>
+                    </div>
+                    <div class="flex gap-3">
+                        <input id="monto-abono" type="number" placeholder="Monto del Pago $" class="flex-1 p-4 bg-slate-50 rounded-2xl font-black outline-none border focus:border-indigo-500">
+                        <button onclick="registrarAbono()" class="bg-emerald-600 text-white px-8 rounded-2xl font-black text-[10px] uppercase shadow-lg italic">Cobrar</button>
+                    </div>
                 </div>` : ''}
                 <div class="space-y-3 pb-20">
                     <p class="text-[10px] text-slate-400 uppercase font-black ml-2 mb-2 italic tracking-widest">Historial de Pagos</p>
                     ${p.historial.map((reg, idx) => `
                     <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-50 animate-fade">
                         <div class="leading-tight font-black">
-                            <p class="text-[8px] text-slate-400 uppercase mb-1 tracking-widest">${reg.fecha}</p>
+                            <p class="text-[8px] text-slate-400 uppercase mb-1 tracking-widest">${reg.fecha} ${reg.moraAplicada?'<span class="text-red-500">[MORA 2X]</span>':''}</p>
                             <p class="text-[13px] italic uppercase tracking-tighter text-emerald-600">Cobro: $${reg.monto.toFixed(2)}</p>
                             <p class="text-[7px] text-red-400 uppercase tracking-tighter">Interés aplicado: +$${(reg.interesEnEseMomento || 0).toFixed(2)}</p>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="editarAbono(${p.id}, ${idx})" class="p-2 bg-amber-50 rounded-lg"><svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/></svg></button>
-                            <button onclick="eliminarAbono(${p.id}, ${idx})" class="p-2 bg-red-50 rounded-lg"><svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5 0v8.25a.75.75 0 001.5 0v-8.25zm4.5 0a.75.75 0 00-1.5 0v8.25a.75.75 0 001.5 0v-8.25z" clip-rule="evenodd"/></svg></button>
+                            <button onclick="eliminarAbono(${p.id}, ${idx})" class="p-2 bg-red-50 rounded-lg"><svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5 0v8.25a.75.75 0 001.5 0v-8.25zm4.5 0a.75.75 0 00-1.5 0v8.25a.75.75 0 001.5 0v-8.25z" clip-rule="evenodd"/></svg></button>
                             <button onclick="mostrarRecibo('${p.nombre}', ${reg.monto}, ${reg.saldoDespues}, '${reg.fecha}')" class="p-2 bg-slate-100 rounded-lg"><img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" class="w-4 h-4"></button>
                         </div>
                     </div>`).join('')}
