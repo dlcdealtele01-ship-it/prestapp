@@ -6,6 +6,7 @@
     <title>Prestapp Pro - Master Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
@@ -39,13 +40,9 @@
             <div class="space-y-4">
                 <input type="email" id="authEmail" placeholder="Correo" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none focus:border-emerald-500">
                 <input type="password" id="authPassword" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none focus:border-emerald-500">
-                
-                <button onclick="handleAuth('login')" class="w-full p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition">Entrar al Sistema</button>
-                
+                <button onclick="handleAuth()" class="w-full p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition">Entrar al Sistema</button>
                 <div class="pt-4 border-t border-slate-100">
-                    <p class="text-[10px] font-black text-slate-400 uppercase leading-tight">
-                        Cualquier consulta contacte a su proveedor
-                    </p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase leading-tight">Cualquier consulta contacte a su proveedor</p>
                 </div>
             </div>
             <p id="authError" class="text-red-500 text-[10px] font-bold mt-4 uppercase"></p>
@@ -148,24 +145,31 @@
     </dialog>
 
     <dialog id="modalReciboImagen" class="rounded-[2.5rem] p-0 border-none overflow-hidden text-center relative">
-        <div class="bg-slate-50 p-6 flex flex-col items-center">
+        <div id="areaRecibo" class="bg-slate-50 p-6 flex flex-col items-center">
             <div class="bg-white p-8 rounded-3xl shadow-xl w-80 text-left border border-slate-100">
                 <div class="text-center mb-6">
-                    <span class="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Comprobante de Pago</span>
+                    <span class="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Comprobante Oficial</span>
                     <h2 id="reciboCliente" class="text-xl font-black uppercase italic mt-1 text-slate-900"></h2>
                 </div>
                 <div class="space-y-3 border-y py-4 border-dashed border-slate-200 text-sm">
-                    <div class="flex justify-between"><span>MONTO RECIBIDO</span><span id="reciboMonto" class="font-black"></span></div>
+                    <div class="flex justify-between text-slate-400 font-bold text-[10px]"><span>FECHA</span><span id="reciboFechaSimple" class="text-slate-900"></span></div>
+                    <div class="flex justify-between"><span>MONTO RECIBIDO</span><span id="reciboMonto" class="font-black text-emerald-600"></span></div>
+                    <div class="flex justify-between"><span>INTERÉS CUBIERTO</span><span id="reciboInteres" class="font-bold text-slate-600"></span></div>
                     <div class="flex justify-between"><span>ABONO A CAPITAL</span><span id="reciboAbonoCapital" class="font-black"></span></div>
-                    <div class="flex justify-between"><span>FECHA</span><span id="reciboFechaSimple" class="font-black"></span></div>
                 </div>
                 <div class="mt-4 bg-slate-900 p-4 rounded-2xl text-center">
                     <p class="text-[8px] font-black text-slate-400 uppercase">Nuevo Saldo Pendiente</p>
                     <p id="reciboSaldo" class="text-2xl font-black text-white"></p>
                 </div>
+                <p class="text-center text-[10px] font-bold text-slate-400 mt-4 uppercase italic">¡Gracias por su puntualidad!</p>
             </div>
         </div>
-        <div class="p-6 bg-white flex flex-col gap-2"><button id="btnCompartirWA" class="w-full p-4 bg-[#25D366] text-white rounded-2xl font-black uppercase">Compartir WhatsApp</button><button onclick="this.closest('dialog').close()" class="w-full text-[10px] font-black text-slate-300 uppercase">Cerrar</button></div>
+        <div class="p-6 bg-white flex flex-col gap-2">
+            <button id="btnCompartirWA" class="w-full p-4 bg-[#25D366] text-white rounded-2xl font-black uppercase flex items-center justify-center gap-2">
+                <i class="ph-fill ph-whatsapp-logo text-xl"></i> Compartir Imagen
+            </button>
+            <button onclick="this.closest('dialog').close()" class="w-full text-[10px] font-black text-slate-300 uppercase">Cerrar</button>
+        </div>
     </dialog>
 
     <script>
@@ -184,10 +188,9 @@
             }
         }
 
-        async function handleAuth(type) {
+        async function handleAuth() {
             const email = authEmail.value, password = authPassword.value;
             if (!email || !password) return;
-            // Solo dejamos activa la función de Login
             const { error } = await _supabase.auth.signInWithPassword({ email, password });
             if (error) authError.innerText = "Acceso incorrecto"; else init();
         }
@@ -244,19 +247,135 @@
 
         function abrirModalNuevo() { modoEdicionForm = false; formTitle.innerText = "Nuevo Préstamo"; formNombre.value = ''; formMonto.value = ''; formTasa.value = '20'; formGracia.value = '0'; modalForm.showModal(); }
         function abrirModalEditar() { modoEdicionForm = true; formTitle.innerText = "Editar Préstamo"; formNombre.value = pActivo.clientes.nombre; formMonto.value = pActivo.monto_prestado; formTasa.value = pActivo.tasa_interes; formGracia.value = pActivo.dias_gracia || 0; modalForm.showModal(); }
-        async function guardarPrestamo() { if(modoEdicionForm) { await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); await _supabase.from('prestamos').update({ monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }).eq('id', pActivo.id); verHistorial(pActivo.id); } else { const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }]); } modalForm.close(); cargarDatos(); }
+        
+        async function guardarPrestamo() { 
+            if(modoEdicionForm) { 
+                await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
+                await _supabase.from('prestamos').update({ monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }).eq('id', pActivo.id); 
+                verHistorial(pActivo.id); 
+            } else { 
+                const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); 
+                await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }]); 
+            } 
+            modalForm.close(); cargarDatos(); 
+        }
+
         function abrirModalPago(id) { pActivo = {id}; idPagoAEditar = null; pagoTitle.innerText = "Registrar Abono"; montoPago.value = ''; fechaPago.value = new Date().toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = false; modalPago.showModal(); }
         function abrirEditarPago(id, monto, esCapital, fecha) { idPagoAEditar = id; pagoTitle.innerText = "Editar Pago Realizado"; montoPago.value = monto; fechaPago.value = new Date(fecha).toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = !esCapital; modalPago.showModal(); }
-        async function confirmarPago() { const m = parseFloat(montoPago.value); const f = fechaPago.value; if(!m || !f) return; const checkCap = document.getElementById('checkTodoCapital').checked; const datos = { monto_pagado: m, aplicar_interes: !checkCap, fecha_pago: f }; if(idPagoAEditar) { await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); } else { await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id, user_id: currentUser.id }]); } modalPago.close(); if(pActivo.id) verHistorial(pActivo.id); else cargarDatos(); if(!idPagoAEditar) abrirReciboVisual(m); }
-        function calcularSaldo(p) { let cap = parseFloat(p.monto_prestado), tasa = p.tasa_interes / 100; (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)).forEach(pg => { const m = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cap * tasa; if (m >= i) cap -= (m - i); } else cap -= m; }); return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) }; }
-        function verificarMora(pagos, diasGracia) { const hoy = new Date(), d = hoy.getDate(); const l15 = 15 + parseInt(diasGracia), l30 = 30 + parseInt(diasGracia); let check = d > l30 ? 30 : (d > l15 ? 15 : 0); if (!check) return false; return !pagos?.some(pg => { const fp = new Date(pg.fecha_pago); return fp.getUTCMonth() === hoy.getUTCMonth() && fp.getUTCDate() >= (check === 15 ? 1 : 16); }); }
-        async function verHistorial(id) { const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', id).single(); pActivo = p; const calc = calcularSaldo(p); viewDashboard.classList.add('hidden'); viewHistorial.classList.remove('hidden'); histNombre.innerText = p.clientes.nombre; histSaldo.innerText = `Saldo: $${calc.capital.toFixed(2)}`; listaPagosHistorial.innerHTML = (p.pagos || []).sort((a,b) => new Date(b.fecha_pago) - new Date(a.fecha_pago)).map(pg => `<div class="bg-white p-5 rounded-[2rem] border flex justify-between items-center shadow-sm"><div><p class="text-[9px] font-black text-slate-300 uppercase">${new Date(pg.fecha_pago).toLocaleDateString('es-ES', {timeZone: 'UTC'})}</p><p class="text-xl font-black tracking-tight">$${parseFloat(pg.monto_pagado).toFixed(2)}</p></div><div class="flex gap-1"><button onclick="abrirEditarPago('${pg.id}', ${pg.monto_pagado}, ${pg.aplicar_interes}, '${pg.fecha_pago}')" class="text-slate-300 p-2"><i class="ph-bold ph-pencil-simple text-xl"></i></button><button onclick="abrirReciboVisual(${pg.monto_pagado})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button><button onclick="eliminarPago('${pg.id}')" class="text-red-200 p-2"><i class="ph-bold ph-trash text-2xl"></i></button></div></div>`).join(''); }
-        async function abrirReciboVisual(montoAbono) { const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single(); const pOrden = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)); pOrden.pop(); let cPrev = parseFloat(p.monto_prestado), tDec = p.tasa_interes / 100; pOrden.forEach(pg => { const m = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cPrev * tDec; if (m >= i) cPrev -= (m - i); } else cPrev -= m; }); const abCap = document.getElementById('checkTodoCapital').checked ? montoAbono : Math.max(0, montoAbono - (cPrev * tDec)); const nSal = Math.max(0, cPrev - abCap); reciboCliente.innerText = p.clientes.nombre; reciboMonto.innerText = `$${montoAbono.toFixed(2)}`; reciboAbonoCapital.innerText = `$${abCap.toFixed(2)}`; reciboFechaSimple.innerText = new Date().toLocaleDateString(); reciboSaldo.innerText = `$${nSal.toFixed(2)}`; modalReciboImagen.showModal(); btnCompartirWA.onclick = () => { const msg = `*COMPROBANTE*%0A*Cliente:* ${p.clientes.nombre}%0A*Abono:* $${montoAbono.toFixed(2)}%0A*Saldo:* $${nSal.toFixed(2)}`; window.open(`https://wa.me/?text=${msg}`, '_blank'); }; }
+        
+        async function confirmarPago() { 
+            const m = parseFloat(montoPago.value); 
+            const f = fechaPago.value; 
+            if(!m || !f) return; 
+            const checkCap = document.getElementById('checkTodoCapital').checked; 
+            const datos = { monto_pagado: m, aplicar_interes: !checkCap, fecha_pago: f }; 
+            if(idPagoAEditar) { 
+                await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); 
+            } else { 
+                await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id, user_id: currentUser.id }]); 
+            } 
+            modalPago.close(); 
+            if(pActivo.id) await verHistorial(pActivo.id); else cargarDatos(); 
+            if(!idPagoAEditar) abrirReciboVisual(m); 
+        }
+
+        function calcularSaldo(p) { 
+            let cap = parseFloat(p.monto_prestado), tasa = p.tasa_interes / 100; 
+            (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)).forEach(pg => { 
+                const m = parseFloat(pg.monto_pagado); 
+                if (pg.aplicar_interes) { 
+                    const i = cap * tasa; 
+                    if (m >= i) cap -= (m - i); 
+                } else cap -= m; 
+            }); 
+            return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) }; 
+        }
+
+        function verificarMora(pagos, diasGracia) { 
+            const hoy = new Date(), d = hoy.getDate(); 
+            const l15 = 15 + parseInt(diasGracia), l30 = 30 + parseInt(diasGracia); 
+            let check = d > l30 ? 30 : (d > l15 ? 15 : 0); 
+            if (!check) return false; 
+            return !pagos?.some(pg => { 
+                const fp = new Date(pg.fecha_pago); 
+                return fp.getUTCMonth() === hoy.getUTCMonth() && fp.getUTCDate() >= (check === 15 ? 1 : 16); 
+            }); 
+        }
+
+        async function verHistorial(id) { 
+            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', id).single(); 
+            pActivo = p; 
+            const calc = calcularSaldo(p); 
+            viewDashboard.classList.add('hidden'); viewHistorial.classList.remove('hidden'); 
+            histNombre.innerText = p.clientes.nombre; 
+            histSaldo.innerText = `Saldo: $${calc.capital.toFixed(2)}`; 
+            listaPagosHistorial.innerHTML = (p.pagos || []).sort((a,b) => new Date(b.fecha_pago) - new Date(a.fecha_pago)).map(pg => `
+                <div class="bg-white p-5 rounded-[2rem] border flex justify-between items-center shadow-sm">
+                    <div>
+                        <p class="text-[9px] font-black text-slate-300 uppercase">${new Date(pg.fecha_pago).toLocaleDateString('es-ES', {timeZone: 'UTC'})}</p>
+                        <p class="text-xl font-black tracking-tight">$${parseFloat(pg.monto_pagado).toFixed(2)}</p>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="abrirEditarPago('${pg.id}', ${pg.monto_pagado}, ${pg.aplicar_interes}, '${pg.fecha_pago}')" class="text-slate-300 p-2"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
+                        <button onclick="abrirReciboVisual(${pg.monto_pagado})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button>
+                        <button onclick="eliminarPago('${pg.id}')" class="text-red-200 p-2"><i class="ph-bold ph-trash text-2xl"></i></button>
+                    </div>
+                </div>`).join(''); 
+        }
+
+        async function abrirReciboVisual(montoAbono) {
+            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single();
+            const pOrden = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago));
+            
+            pOrden.pop(); 
+            let cPrev = parseFloat(p.monto_prestado), tDec = p.tasa_interes / 100;
+            pOrden.forEach(pg => {
+                const m = parseFloat(pg.monto_pagado);
+                if (pg.aplicar_interes) {
+                    const i = cPrev * tDec;
+                    if (m >= i) cPrev -= (m - i);
+                } else cPrev -= m;
+            });
+
+            const esSoloCapital = document.getElementById('checkTodoCapital').checked;
+            const interesGenerado = cPrev * tDec;
+            const intCubierto = esSoloCapital ? 0 : Math.min(montoAbono, interesGenerado);
+            const abCap = esSoloCapital ? montoAbono : Math.max(0, montoAbono - interesGenerado);
+            const nSal = Math.max(0, cPrev - abCap);
+
+            reciboCliente.innerText = p.clientes.nombre;
+            reciboMonto.innerText = `$${montoAbono.toFixed(2)}`;
+            reciboInteres.innerText = `$${intCubierto.toFixed(2)}`;
+            reciboAbonoCapital.innerText = `$${abCap.toFixed(2)}`;
+            reciboFechaSimple.innerText = new Date().toLocaleDateString('es-ES');
+            reciboSaldo.innerText = `$${nSal.toFixed(2)}`;
+            
+            modalReciboImagen.showModal();
+
+            btnCompartirWA.onclick = async () => {
+                const area = document.getElementById('areaRecibo');
+                const canvas = await html2canvas(area, { backgroundColor: '#F8FAFC', scale: 2 });
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], `Recibo_${p.clientes.nombre}.png`, { type: 'image/png' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({ files: [file], title: 'Recibo', text: `Comprobante de ${p.clientes.nombre}` });
+                        } catch (err) { console.error(err); }
+                    } else {
+                        const link = document.createElement('a'); link.download = `Recibo_${p.clientes.nombre}.png`;
+                        link.href = URL.createObjectURL(blob); link.click();
+                        alert("Imagen descargada. Compártela manualmente.");
+                    }
+                });
+            };
+        }
+
         async function crearCartera() { if(!nombreNuevaCartera.value) return; await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]); modalCartera.close(); cargarCarteras(); }
         async function eliminarPago(id) { if(confirm("¿Borrar pago?")) { await _supabase.from('pagos').delete().eq('id', id); verHistorial(pActivo.id); } }
         async function eliminarPrestamoCompleto() { if(confirm("¿Borrar préstamo y todo su historial?")) { await _supabase.from('prestamos').delete().eq('id', pActivo.id); cerrarHistorial(); } }
         function cerrarHistorial() { viewHistorial.classList.add('hidden'); viewDashboard.classList.remove('hidden'); cargarDatos(); }
         function cambiarCartera(id) { idCarteraActual = id; cargarDatos(); }
+        
         window.onload = init;
     </script>
 </body>
