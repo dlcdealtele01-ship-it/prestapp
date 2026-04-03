@@ -181,19 +181,36 @@
             }
         }
 
-        // AUTH & CARTERAS
         async function handleAuth(type) {
-            const email = authEmail.value, password = authPassword.value;
-            if (!email || !password) return;
-            const { error } = type === 'login' 
-                ? await _supabase.auth.signInWithPassword({ email, password })
-                : await _supabase.auth.signUp({ email, password });
-            if (error) authError.innerText = error.message; else init();
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const errorDisplay = document.getElementById('authError');
+
+            if (!email || !password) {
+                errorDisplay.innerText = "Ingresa correo y contraseña";
+                return;
+            }
+
+            errorDisplay.innerText = "Procesando...";
+
+            if (type === 'login') {
+                const { error } = await _supabase.auth.signInWithPassword({ email, password });
+                if (error) errorDisplay.innerText = "Error: " + error.message;
+                else init();
+            } else {
+                const { data, error } = await _supabase.auth.signUp({ email, password });
+                if (error) {
+                    errorDisplay.innerText = "Error: " + error.message;
+                } else {
+                    if (data.session) init();
+                    else alert("Registro exitoso. Si activaste confirmación por email, revísalo para entrar.");
+                }
+            }
         }
 
         async function handleLogout() { await _supabase.auth.signOut(); localStorage.clear(); window.location.reload(); }
         async function handleResetPassword() {
-            const email = authEmail.value;
+            const email = document.getElementById('authEmail').value;
             if (!email) { alert("Ingresa tu correo primero"); return; }
             const { error } = await _supabase.auth.resetPasswordForEmail(email);
             alert(error ? error.message : "Correo de recuperación enviado.");
@@ -208,7 +225,6 @@
             }
         }
 
-        // CARGAR DATOS CON FILTRO DE TABS
         async function cargarDatos() {
             if (!idCarteraActual) return;
             const { data: prestamos } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('cartera_id', idCarteraActual);
@@ -218,11 +234,8 @@
             prestamos?.forEach(p => {
                 const calc = calcularSaldo(p);
                 const esFinalizado = calc.capital <= 0.05;
-
-                // Solo sumamos totales de préstamos activos
                 if(!esFinalizado) { tCap += calc.capital; tInt += calc.interes; }
 
-                // Lógica de visualización por pestaña
                 if ((tabActual === 'activos' && !esFinalizado) || (tabActual === 'finalizados' && esFinalizado)) {
                     const mora = verificarMora(p.pagos, p.dias_gracia || 0);
                     tbody.innerHTML += `
@@ -252,17 +265,71 @@
             cargarDatos();
         }
 
-        // LAS DEMÁS FUNCIONES PERMANECEN IGUAL
         function abrirModalNuevo() { modoEdicionForm = false; formTitle.innerText = "Nuevo Préstamo"; formNombre.value = ''; formMonto.value = ''; formTasa.value = '20'; formGracia.value = '0'; modalForm.showModal(); }
         function abrirModalEditar() { modoEdicionForm = true; formTitle.innerText = "Editar Préstamo"; formNombre.value = pActivo.clientes.nombre; formMonto.value = pActivo.monto_prestado; formTasa.value = pActivo.tasa_interes; formGracia.value = pActivo.dias_gracia || 0; modalForm.showModal(); }
-        async function guardarPrestamo() { if(modoEdicionForm) { await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); await _supabase.from('prestamos').update({ monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }).eq('id', pActivo.id); verHistorial(pActivo.id); } else { const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }]); } modalForm.close(); cargarDatos(); }
+        
+        async function guardarPrestamo() { 
+            if(modoEdicionForm) { 
+                await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
+                await _supabase.from('prestamos').update({ monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }).eq('id', pActivo.id); 
+                verHistorial(pActivo.id); 
+            } else { 
+                const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); 
+                await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }]); 
+            } 
+            modalForm.close(); cargarDatos(); 
+        }
+
         function abrirModalPago(id) { pActivo = {id}; idPagoAEditar = null; pagoTitle.innerText = "Registrar Abono"; montoPago.value = ''; fechaPago.value = new Date().toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = false; modalPago.showModal(); }
-        function abrirEditarPago(id, monto, esCapital, fecha) { idPagoAEditar = id; pagoTitle.innerText = "Editar Pago Realizado"; montoPago.value = monto; fechaPago.value = new Date(fecha).toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = !esCapital; modalPago.showModal(); }
-        async function confirmarPago() { const m = parseFloat(montoPago.value); const f = fechaPago.value; if(!m || !f) return; const checkCap = document.getElementById('checkTodoCapital').checked; const datos = { monto_pagado: m, aplicar_interes: !checkCap, fecha_pago: f }; if(idPagoAEditar) { await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); } else { await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id, user_id: currentUser.id }]); } modalPago.close(); if(pActivo.id) verHistorial(pActivo.id); else cargarDatos(); if(!idPagoAEditar) abrirReciboVisual(m); }
+        
+        async function confirmarPago() { 
+            const m = parseFloat(montoPago.value); 
+            const f = fechaPago.value; 
+            if(!m || !f) return; 
+            const checkCap = document.getElementById('checkTodoCapital').checked; 
+            const datos = { monto_pagado: m, aplicar_interes: !checkCap, fecha_pago: f }; 
+            if(idPagoAEditar) { 
+                await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); 
+            } else { 
+                await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id, user_id: currentUser.id }]); 
+            } 
+            modalPago.close(); 
+            if(pActivo.id) verHistorial(pActivo.id); else cargarDatos(); 
+            if(!idPagoAEditar) abrirReciboVisual(m); 
+        }
+
         function calcularSaldo(p) { let cap = parseFloat(p.monto_prestado), tasa = p.tasa_interes / 100; (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)).forEach(pg => { const m = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cap * tasa; if (m >= i) cap -= (m - i); } else cap -= m; }); return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) }; }
         function verificarMora(pagos, diasGracia) { const hoy = new Date(), d = hoy.getDate(); const l15 = 15 + parseInt(diasGracia), l30 = 30 + parseInt(diasGracia); let check = d > l30 ? 30 : (d > l15 ? 15 : 0); if (!check) return false; return !pagos?.some(pg => { const fp = new Date(pg.fecha_pago); return fp.getUTCMonth() === hoy.getUTCMonth() && fp.getUTCDate() >= (check === 15 ? 1 : 16); }); }
-        async function verHistorial(id) { const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', id).single(); pActivo = p; const calc = calcularSaldo(p); viewDashboard.classList.add('hidden'); viewHistorial.classList.remove('hidden'); histNombre.innerText = p.clientes.nombre; histSaldo.innerText = `Saldo: $${calc.capital.toFixed(2)}`; listaPagosHistorial.innerHTML = (p.pagos || []).sort((a,b) => new Date(b.fecha_pago) - new Date(a.fecha_pago)).map(pg => `<div class="bg-white p-5 rounded-[2rem] border flex justify-between items-center shadow-sm"><div><p class="text-[9px] font-black text-slate-300 uppercase">${new Date(pg.fecha_pago).toLocaleDateString('es-ES', {timeZone: 'UTC'})}</p><p class="text-xl font-black tracking-tight">$${parseFloat(pg.monto_pagado).toFixed(2)}</p></div><div class="flex gap-1"><button onclick="abrirEditarPago('${pg.id}', ${pg.monto_pagado}, ${pg.aplicar_interes}, '${pg.fecha_pago}')" class="text-slate-300 p-2"><i class="ph-bold ph-pencil-simple text-xl"></i></button><button onclick="abrirReciboVisual(${pg.monto_pagado})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button><button onclick="eliminarPago('${pg.id}')" class="text-red-200 p-2"><i class="ph-bold ph-trash text-2xl"></i></button></div></div>`).join(''); }
-        async function abrirReciboVisual(montoAbono) { const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single(); const pOrden = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)); pOrden.pop(); let cPrev = parseFloat(p.monto_prestado), tDec = p.tasa_interes / 100; pOrden.forEach(pg => { const m = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cPrev * tDec; if (m >= i) cPrev -= (m - i); } else cPrev -= m; }); const abCap = document.getElementById('checkTodoCapital').checked ? montoAbono : Math.max(0, montoAbono - (cPrev * tDec)); const nSal = Math.max(0, cPrev - abCap); reciboCliente.innerText = p.clientes.nombre; reciboMonto.innerText = `$${montoAbono.toFixed(2)}`; reciboAbonoCapital.innerText = `$${abCap.toFixed(2)}`; reciboFechaSimple.innerText = new Date().toLocaleDateString(); reciboSaldo.innerText = `$${nSal.toFixed(2)}`; modalReciboImagen.showModal(); btnCompartirWA.onclick = () => { const msg = `*COMPROBANTE*%0A*Cliente:* ${p.clientes.nombre}%0A*Abono:* $${montoAbono.toFixed(2)}%0A*Saldo:* $${nSal.toFixed(2)}`; window.open(`https://wa.me/?text=${msg}`, '_blank'); }; }
+        
+        async function verHistorial(id) { 
+            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', id).single(); 
+            pActivo = p; 
+            const calc = calcularSaldo(p); 
+            viewDashboard.classList.add('hidden'); 
+            viewHistorial.classList.remove('hidden'); 
+            histNombre.innerText = p.clientes.nombre; 
+            histSaldo.innerText = `Saldo: $${calc.capital.toFixed(2)}`; 
+            listaPagosHistorial.innerHTML = (p.pagos || []).sort((a,b) => new Date(b.fecha_pago) - new Date(a.fecha_pago)).map(pg => `<div class="bg-white p-5 rounded-[2rem] border flex justify-between items-center shadow-sm"><div><p class="text-[9px] font-black text-slate-300 uppercase">${new Date(pg.fecha_pago).toLocaleDateString('es-ES', {timeZone: 'UTC'})}</p><p class="text-xl font-black tracking-tight">$${parseFloat(pg.monto_pagado).toFixed(2)}</p></div><div class="flex gap-1"><button onclick="abrirReciboVisual(${pg.monto_pagado})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button><button onclick="eliminarPago('${pg.id}')" class="text-red-200 p-2"><i class="ph-bold ph-trash text-2xl"></i></button></div></div>`).join(''); 
+        }
+
+        async function abrirReciboVisual(montoAbono) { 
+            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single(); 
+            const pOrden = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)); 
+            pOrden.pop(); 
+            let cPrev = parseFloat(p.monto_prestado), tDec = p.tasa_interes / 100; 
+            pOrden.forEach(pg => { const m = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cPrev * tDec; if (m >= i) cPrev -= (m - i); } else cPrev -= m; }); 
+            const checkCap = document.getElementById('checkTodoCapital').checked;
+            const abCap = checkCap ? montoAbono : Math.max(0, montoAbono - (cPrev * tDec)); 
+            const nSal = Math.max(0, cPrev - abCap); 
+            reciboCliente.innerText = p.clientes.nombre; 
+            reciboMonto.innerText = `$${montoAbono.toFixed(2)}`; 
+            reciboAbonoCapital.innerText = `$${abCap.toFixed(2)}`; 
+            reciboFechaSimple.innerText = new Date().toLocaleDateString(); 
+            reciboSaldo.innerText = `$${nSal.toFixed(2)}`; 
+            modalReciboImagen.showModal(); 
+            btnCompartirWA.onclick = () => { const msg = `*COMPROBANTE*%0A*Cliente:* ${p.clientes.nombre}%0A*Abono:* $${montoAbono.toFixed(2)}%0A*Saldo:* $${nSal.toFixed(2)}`; window.open(`https://wa.me/?text=${msg}`, '_blank'); }; 
+        }
+
         async function crearCartera() { if(!nombreNuevaCartera.value) return; await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]); modalCartera.close(); cargarCarteras(); }
         async function eliminarPago(id) { if(confirm("¿Borrar pago?")) { await _supabase.from('pagos').delete().eq('id', id); verHistorial(pActivo.id); } }
         async function eliminarPrestamoCompleto() { if(confirm("¿Borrar préstamo y todo su historial?")) { await _supabase.from('prestamos').delete().eq('id', pActivo.id); cerrarHistorial(); } }
