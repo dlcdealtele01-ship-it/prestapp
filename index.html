@@ -14,8 +14,6 @@
         dialog::backdrop { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); }
         .card-shadow { box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05); }
         label { display: block; text-align: left; font-weight: 800; text-transform: uppercase; font-size: 10px; color: #94a3b8; margin-bottom: 4px; margin-left: 8px; }
-        .badge-mora { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body class="bg-[#F8FAFC] min-h-screen text-slate-900">
@@ -59,7 +57,6 @@
             <div class="flex items-center gap-3">
                 <div class="flex items-center bg-slate-100 rounded-full px-2 border">
                     <select id="selectCartera" onchange="cambiarCartera(this.value)" class="bg-transparent text-[10px] font-black uppercase px-2 py-2 outline-none"></select>
-                    <button onclick="document.getElementById('modalCartera').showModal()" class="text-blue-600 p-1"><i class="ph-bold ph-plus-circle text-xl"></i></button>
                 </div>
                 <button onclick="handleLogout()" class="p-2 text-red-400"><i class="ph-bold ph-power text-xl"></i></button>
             </div>
@@ -81,7 +78,7 @@
                     <tbody id="listaPrestamos" class="divide-y divide-slate-50"></tbody>
                 </table>
             </div>
-            <button onclick="abrirModalNuevo()" class="fixed bottom-8 right-8 bg-slate-900 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition z-40"><i class="ph-bold ph-plus text-2xl"></i></button>
+            <button onclick="abrirModalNuevo()" class="fixed bottom-8 right-8 bg-slate-900 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-40"><i class="ph-bold ph-plus text-2xl"></i></button>
         </main>
 
         <main id="viewHistorial" class="hidden max-w-2xl mx-auto p-6">
@@ -98,10 +95,10 @@
 
     <dialog id="modalPago" class="rounded-[2.5rem] p-8 w-full max-w-xs border-none text-center relative">
         <button onclick="this.closest('dialog').close()" class="absolute top-6 right-6 text-slate-300"><i class="ph-bold ph-x text-xl"></i></button>
-        <h3 id="pagoTitle" class="font-black uppercase mb-4 italic text-slate-400 text-[10px]">Registrar Abono</h3>
+        <h3 id="pagoTitle" class="font-black uppercase mb-4 italic text-slate-400 text-[10px]">Abono</h3>
         <div class="space-y-4 mb-6">
             <div>
-                <label>Fecha del Pago</label>
+                <label>Fecha</label>
                 <input type="date" id="fechaPago" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold text-sm outline-none text-center">
             </div>
             <div class="flex items-center justify-center gap-2">
@@ -117,15 +114,17 @@
         <div class="bg-slate-50 p-6 flex flex-col items-center">
             <div class="bg-white p-8 rounded-3xl shadow-xl w-80 text-left border border-slate-100">
                 <div class="text-center mb-6">
-                    <span class="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Comprobante de Pago</span>
+                    <span class="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Comprobante</span>
                     <h2 id="reciboCliente" class="text-xl font-black uppercase italic mt-1 text-slate-900"></h2>
                 </div>
                 <div class="space-y-3 border-y py-4 border-dashed border-slate-200 text-sm">
-                    <div class="flex justify-between"><span>MONTO RECIBIDO</span><span id="reciboMonto" class="font-black text-emerald-600"></span></div>
+                    <div class="flex justify-between"><span>TOTAL RECIBIDO</span><span id="reciboMonto" class="font-black text-emerald-600"></span></div>
+                    <div class="flex justify-between text-[10px] text-slate-400 uppercase font-bold"><span>Interés Cobrado</span><span id="reciboInteresCobrado"></span></div>
+                    <div class="flex justify-between text-[10px] text-slate-400 uppercase font-bold"><span>Abono Capital</span><span id="reciboAbonoCapital"></span></div>
                     <div class="flex justify-between"><span>FECHA</span><span id="reciboFechaSimple" class="font-black"></span></div>
                 </div>
                 <div class="mt-4 bg-slate-900 p-4 rounded-2xl text-center">
-                    <p class="text-[8px] font-black text-slate-400 uppercase">Saldo Pendiente</p>
+                    <p class="text-[8px] font-black text-slate-400 uppercase">Saldo Restante</p>
                     <p id="reciboSaldo" class="text-2xl font-black text-white"></p>
                 </div>
             </div>
@@ -152,17 +151,9 @@
         </div>
     </dialog>
 
-    <dialog id="modalCartera" class="rounded-[2.5rem] p-8 w-full max-w-xs border-none text-center relative">
-        <button onclick="this.closest('dialog').close()" class="absolute top-6 right-6 text-slate-300"><i class="ph-bold ph-x text-xl"></i></button>
-        <h3 class="font-black uppercase mb-4 italic text-slate-400 text-xs">Nueva Cartera</h3>
-        <input type="text" id="nombreNuevaCartera" placeholder="Nombre" class="w-full p-4 bg-slate-50 border rounded-2xl mb-4 font-bold text-center outline-none">
-        <button onclick="crearCartera()" class="w-full p-4 bg-blue-600 text-white rounded-2xl font-black uppercase">Crear</button>
-    </dialog>
-
     <script>
         let currentUser = null, idCarteraActual = null, pActivo = null, idPagoAEditar = null;
 
-        // INICIO Y AUTH
         async function init() {
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
@@ -172,32 +163,24 @@
                 await cargarCarteras();
             } else {
                 document.getElementById('authScreen').classList.remove('hidden');
-                document.getElementById('mainApp').classList.add('hidden');
             }
         }
 
         async function handleAuth(type) {
             const email = authEmail.value, password = authPassword.value;
-            if(!email || !password) return;
             const { error } = type === 'login' 
                 ? await _supabase.auth.signInWithPassword({ email, password })
                 : await _supabase.auth.signUp({ email, password });
             if (error) authError.innerText = error.message; else init();
         }
 
-        async function handleLogout() {
-            await _supabase.auth.signOut();
-            location.reload();
-        }
-
         async function handleResetPassword() {
             const email = authEmail.value;
             if(!email) return alert("Ingresa tu correo");
             await _supabase.auth.resetPasswordForEmail(email, { redirectTo: 'https://prestapp.space' });
-            alert("Enlace enviado a tu correo.");
+            alert("Enlace enviado.");
         }
 
-        // CARTERAS Y DATOS
         async function cargarCarteras() {
             const { data } = await _supabase.from('carteras').select('*');
             if (data?.length) {
@@ -208,34 +191,24 @@
         }
 
         async function cargarDatos() {
-            if (!idCarteraActual) return;
             const { data: prestamos } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('cartera_id', idCarteraActual);
             listaPrestamos.innerHTML = '';
             let tCap = 0, tInt = 0;
             prestamos?.forEach(p => {
                 const calc = calcularSaldo(p); tCap += calc.capital; tInt += calc.interes;
-                const mora = verificarMora(p.pagos, p.dias_gracia || 0);
                 listaPrestamos.innerHTML += `<tr class="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onclick="verHistorial('${p.id}')">
-                    <td class="p-6">
-                        ${mora ? `<span class="badge-mora bg-red-100 text-red-600 text-[8px] font-black px-2 py-0.5 rounded-full block w-fit mb-1 uppercase">Pendiente</span>` : ''}
-                        <div class="font-black uppercase text-[11px] text-slate-700">${p.clientes.nombre}</div>
-                    </td>
-                    <td class="p-6 text-right">
-                        <div class="font-black text-sm">$${calc.capital.toFixed(2)}</div>
-                        <div class="text-[9px] text-emerald-500 font-black">+$${calc.interes.toFixed(2)}</div>
-                    </td>
-                    <td class="p-6 w-10" onclick="event.stopPropagation()">
-                        <button onclick="abrirModalPago('${p.id}')" class="bg-emerald-500 text-white p-2 rounded-2xl shadow-lg"><i class="ph-bold ph-hand-coins text-xl"></i></button>
-                    </td>
+                    <td class="p-6 font-black uppercase text-[11px] text-slate-700">${p.clientes.nombre}</td>
+                    <td class="p-6 text-right"><div class="font-black text-sm">$${calc.capital.toFixed(2)}</div><div class="text-[9px] text-emerald-500 font-black">+$${calc.interes.toFixed(2)}</div></td>
+                    <td class="p-6 w-10" onclick="event.stopPropagation()"><button onclick="abrirModalPago('${p.id}')" class="bg-emerald-500 text-white p-2 rounded-2xl shadow-lg"><i class="ph-bold ph-hand-coins text-xl"></i></button></td>
                 </tr>`;
             });
             totalCapital.innerText = `$${tCap.toFixed(2)}`;
             totalIntereses.innerText = `$${tInt.toFixed(2)}`;
         }
 
-        // PAGOS Y LOGICA
         function abrirModalPago(id) {
             pActivo = {id}; idPagoAEditar = null;
+            pagoTitle.innerText = "Registrar Abono";
             fechaPago.value = new Date().toISOString().split('T')[0];
             montoPago.value = '';
             modalPago.showModal();
@@ -243,6 +216,7 @@
 
         function abrirEditarPago(id, monto, esCapital, fecha) {
             idPagoAEditar = id;
+            pagoTitle.innerText = "Editar Pago";
             montoPago.value = monto;
             fechaPago.value = new Date(fecha).toISOString().split('T')[0];
             document.getElementById('checkTodoCapital').checked = !esCapital;
@@ -260,7 +234,10 @@
             
             modalPago.close();
             if(pActivo.id) verHistorial(pActivo.id); else cargarDatos();
-            if(!idPagoAEditar) abrirReciboVisual(m);
+            if(!idPagoAEditar) {
+                // Pequeño delay para asegurar que el cálculo sea con el nuevo pago
+                setTimeout(() => abrirReciboVisual(m, !checkCap), 300);
+            }
         }
 
         async function verHistorial(id) {
@@ -271,14 +248,22 @@
             listaPagosHistorial.innerHTML = p.pagos.sort((a,b) => new Date(b.fecha_pago) - new Date(a.fecha_pago)).map(pg => `
                 <div class="bg-white p-5 rounded-[2.5rem] border flex justify-between items-center card-shadow">
                     <div>
-                        <p class="text-[9px] font-black text-slate-300 uppercase">${new Date(pg.fecha_pago).toLocaleDateString('es-ES', {timeZone: 'UTC'})}</p>
+                        <p class="text-[9px] font-black text-slate-300 uppercase">${pg.fecha_pago}</p>
                         <p class="text-xl font-black">$${parseFloat(pg.monto_pagado).toFixed(2)}</p>
                     </div>
                     <div class="flex gap-1">
                         <button onclick="abrirEditarPago('${pg.id}', ${pg.monto_pagado}, ${pg.aplicar_interes}, '${pg.fecha_pago}')" class="text-slate-300 p-2"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
-                        <button onclick="abrirReciboVisual(${pg.monto_pagado})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button>
+                        <button onclick="abrirReciboVisual(${pg.monto_pagado}, ${pg.aplicar_interes})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button>
+                        <button onclick="eliminarPago('${pg.id}')" class="text-red-200 p-2"><i class="ph-bold ph-trash text-2xl"></i></button>
                     </div>
                 </div>`).join('');
+        }
+
+        async function eliminarPago(id) {
+            if(confirm("¿Borrar este pago permanentemente?")) {
+                await _supabase.from('pagos').delete().eq('id', id);
+                verHistorial(pActivo.id);
+            }
         }
 
         function calcularSaldo(p) {
@@ -290,41 +275,54 @@
             return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) };
         }
 
-        function verificarMora(pagos, diasGracia) {
-            const hoy = new Date(), d = hoy.getDate();
-            const limite = 15 + parseInt(diasGracia);
-            if (d <= limite) return false;
-            return !pagos?.some(pg => {
-                const fp = new Date(pg.fecha_pago);
-                return fp.getUTCMonth() === hoy.getUTCMonth();
+        async function abrirReciboVisual(monto, aplicaInteres) {
+            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single();
+            pActivo = p;
+            
+            // Calculamos cuánto del abono fue a interés y cuánto a capital
+            let capActual = parseFloat(p.monto_prestado), tasa = p.tasa_interes / 100;
+            const pagosOrdenados = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago));
+            
+            // Reconstruimos el capital justo antes de este último pago
+            pagosOrdenados.slice(0, -1).forEach(pg => {
+                if (pg.aplicar_interes) capActual -= (pg.monto_pagado - (capActual * tasa));
+                else capActual -= pg.monto_pagado;
             });
-        }
 
-        async function abrirReciboVisual(monto) {
-            reciboCliente.innerText = pActivo.clientes?.nombre || "Cliente";
+            const interesCobrado = aplicaInteres ? (capActual * tasa) : 0;
+            const abonoCapital = aplicaInteres ? (monto - interesCobrado) : monto;
+            const { capital: saldoFinal } = calcularSaldo(p);
+
+            reciboCliente.innerText = p.clientes.nombre;
             reciboMonto.innerText = `$${monto.toFixed(2)}`;
+            reciboInteresCobrado.innerText = `$${interesCobrado.toFixed(2)}`;
+            reciboAbonoCapital.innerText = `$${abonoCapital.toFixed(2)}`;
             reciboFechaSimple.innerText = new Date().toLocaleDateString();
-            const { capital } = calcularSaldo(pActivo);
-            reciboSaldo.innerText = `$${capital.toFixed(2)}`;
+            reciboSaldo.innerText = `$${saldoFinal.toFixed(2)}`;
+            
             modalReciboImagen.showModal();
             btnCompartirWA.onclick = () => {
-                const msg = `*PAGO RECIBIDO*%0A*Cliente:* ${reciboCliente.innerText}%0A*Abono:* ${reciboMonto.innerText}%0A*Saldo actual:* ${reciboSaldo.innerText}`;
+                const msg = `*COMPROBANTE DE PAGO*%0A*Cliente:* ${p.clientes.nombre}%0A*Total:* $${monto.toFixed(2)}%0A*Abono Capital:* $${abonoCapital.toFixed(2)}%0A*Saldo Final:* $${saldoFinal.toFixed(2)}`;
                 window.open(`https://wa.me/?text=${msg}`, '_blank');
             };
         }
 
-        // AUXILIARES
         function abrirModalNuevo() { pActivo = null; modalForm.showModal(); }
         async function guardarPrestamo() {
             const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single();
             await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }]);
             modalForm.close(); cargarDatos();
         }
-        async function crearCartera() {
-            await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]);
-            modalCartera.close(); cargarCarteras();
+
+        async function eliminarPrestamoCompleto() {
+            if(confirm("¿Borrar todo el préstamo?")) {
+                await _supabase.from('prestamos').delete().eq('id', pActivo.id);
+                cerrarHistorial();
+            }
         }
+
         function cerrarHistorial() { viewHistorial.classList.add('hidden'); viewDashboard.classList.remove('hidden'); cargarDatos(); }
+        function handleLogout() { _supabase.auth.signOut().then(() => location.reload()); }
         function cambiarCartera(id) { idCarteraActual = id; cargarDatos(); }
         window.onload = init;
     </script>
