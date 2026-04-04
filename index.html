@@ -189,10 +189,13 @@
         let currentUser = null, idCarteraActual = null, pActivo = null, modoEdicionForm = false, idPagoAEditar = null, tabActual = 'activos';
         let isSignUpMode = false, timeoutBusqueda = null;
 
+        // INICIALIZACIÓN Y AUTH
         async function init() {
-            // DETECCIÓN INMEDIATA DE TOKEN EN URL
             const hash = window.location.hash;
-            if (hash && (hash.includes('type=recovery') || hash.includes('access_token='))) {
+            const isRecovering = hash && (hash.includes('type=recovery') || hash.includes('access_token='));
+
+            // Si venimos de un reset, mostramos inmediatamente la vista de nueva contraseña
+            if (isRecovering) {
                 document.getElementById('authScreen').classList.remove('hidden');
                 document.getElementById('mainApp').classList.add('hidden');
                 switchAuthView('view-auth-new-password');
@@ -205,8 +208,11 @@
                 }
 
                 if (session) {
-                    // Si el formulario de nueva contraseña está visible, NO saltar al dashboard
-                    if (!document.getElementById('view-auth-new-password').classList.contains('hidden')) return;
+                    // BLOQUEO: Si estamos cambiando contraseña o hay un token de reset, no saltar al dashboard
+                    const isNewPassVisible = !document.getElementById('view-auth-new-password').classList.contains('hidden');
+                    if (isNewPassVisible || window.location.hash.includes('access_token')) {
+                        return; 
+                    }
 
                     currentUser = session.user;
                     const { data: perfil } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).maybeSingle();
@@ -223,7 +229,9 @@
                         await cargarCarteras();
                     }
                 } else {
-                    mostrarLogin();
+                    if (!window.location.hash.includes('access_token')) {
+                        mostrarLogin();
+                    }
                 }
             });
         }
@@ -247,7 +255,7 @@
             if (!email) { authError.innerText = "Ingresa tu correo"; return; }
             const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
             if (error) authError.innerText = error.message; 
-            else { alert("Enlace enviado."); switchAuthView('view-auth-main'); }
+            else { alert("Revisa tu correo. Se envió el enlace."); switchAuthView('view-auth-main'); }
         }
 
         async function handleUpdatePassword() {
@@ -256,7 +264,7 @@
             const { error } = await _supabase.auth.updateUser({ password: newPassword });
             if (error) document.getElementById('authError').innerText = error.message;
             else { 
-                alert("Contraseña actualizada."); 
+                alert("¡Contraseña actualizada con éxito!"); 
                 await _supabase.auth.signOut();
                 window.location.href = window.location.pathname; 
             }
@@ -281,12 +289,13 @@
                 if (error) authError.innerText = error.message; else { alert("Enviado para aprobación."); toggleAuthMode(); }
             } else {
                 const { error } = await _supabase.auth.signInWithPassword({ email, password });
-                if (error) authError.innerText = "Error de acceso"; 
+                if (error) authError.innerText = "Correo o contraseña incorrectos"; 
             }
         }
 
         async function handleLogout() { await _supabase.auth.signOut(); window.location.reload(); }
 
+        // LÓGICA DE NEGOCIO (Saldo, Carteras, Prestamos)
         function calcularSaldo(p) { 
             let cap = parseFloat(p.monto_prestado), tasa = (p.tasa_interes || 0) / 100; 
             const pagos = (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago));
