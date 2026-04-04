@@ -64,6 +64,13 @@
                 <button onclick="handleResetRequest()" class="w-full p-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition">Enviar Enlace</button>
                 <button onclick="switchAuthView('view-auth-main')" class="mt-4 w-full text-[10px] font-black text-slate-400 uppercase">Volver</button>
             </div>
+
+            <div id="view-auth-new-password" class="hidden">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-4 text-center">Nueva contraseña</p>
+                <input type="password" id="newPasswordInput" placeholder="Mínimo 6 caracteres" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none mb-4">
+                <button onclick="handleUpdatePassword()" class="w-full p-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition">Guardar Cambios</button>
+            </div>
+
             <p id="authError" class="text-red-500 text-[10px] font-bold mt-4 uppercase leading-tight text-center"></p>
         </div>
     </div>
@@ -183,29 +190,54 @@
         let isSignUpMode = false, timeoutBusqueda = null;
 
         async function init() {
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (session) {
-                currentUser = session.user;
-                const { data: perfil } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).single();
-                if (!perfil || !perfil.aprobado) {
-                    await _supabase.auth.signOut();
-                    document.getElementById('authError').innerText = "Cuenta pendiente de aprobación.";
-                    document.getElementById('authScreen').classList.remove('hidden');
-                    return;
-                }
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                await cargarCarteras();
-            } else {
+            // DETECCIÓN INMEDIATA DE TOKEN EN URL
+            const hash = window.location.hash;
+            if (hash && (hash.includes('type=recovery') || hash.includes('access_token='))) {
                 document.getElementById('authScreen').classList.remove('hidden');
                 document.getElementById('mainApp').classList.add('hidden');
+                switchAuthView('view-auth-new-password');
             }
+
+            _supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === "PASSWORD_RECOVERY") {
+                    switchAuthView('view-auth-new-password');
+                    return;
+                }
+
+                if (session) {
+                    // Si el formulario de nueva contraseña está visible, NO saltar al dashboard
+                    if (!document.getElementById('view-auth-new-password').classList.contains('hidden')) return;
+
+                    currentUser = session.user;
+                    const { data: perfil } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).maybeSingle();
+                    
+                    if (!perfil || !perfil.aprobado) {
+                        if (event !== "SIGNED_OUT") {
+                            await _supabase.auth.signOut();
+                            document.getElementById('authError').innerText = "Cuenta pendiente de aprobación.";
+                        }
+                        mostrarLogin();
+                    } else {
+                        document.getElementById('authScreen').classList.add('hidden');
+                        document.getElementById('mainApp').classList.remove('hidden');
+                        await cargarCarteras();
+                    }
+                } else {
+                    mostrarLogin();
+                }
+            });
         }
 
-        // --- LÓGICA DE AUTENTICACIÓN ---
+        function mostrarLogin() {
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            if (!window.location.hash.includes('access_token')) switchAuthView('view-auth-main');
+        }
+
         function switchAuthView(viewId) {
             document.getElementById('view-auth-main').classList.add('hidden');
             document.getElementById('view-auth-reset').classList.add('hidden');
+            document.getElementById('view-auth-new-password').classList.add('hidden');
             document.getElementById(viewId).classList.remove('hidden');
             document.getElementById('authError').innerText = "";
         }
@@ -213,9 +245,21 @@
         async function handleResetRequest() {
             const email = document.getElementById('resetEmailInput').value;
             if (!email) { authError.innerText = "Ingresa tu correo"; return; }
-            const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+            const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
             if (error) authError.innerText = error.message; 
             else { alert("Enlace enviado."); switchAuthView('view-auth-main'); }
+        }
+
+        async function handleUpdatePassword() {
+            const newPassword = document.getElementById('newPasswordInput').value;
+            if (newPassword.length < 6) { document.getElementById('authError').innerText = "Mínimo 6 caracteres"; return; }
+            const { error } = await _supabase.auth.updateUser({ password: newPassword });
+            if (error) document.getElementById('authError').innerText = error.message;
+            else { 
+                alert("Contraseña actualizada."); 
+                await _supabase.auth.signOut();
+                window.location.href = window.location.pathname; 
+            }
         }
 
         function toggleAuthMode() {
@@ -237,13 +281,12 @@
                 if (error) authError.innerText = error.message; else { alert("Enviado para aprobación."); toggleAuthMode(); }
             } else {
                 const { error } = await _supabase.auth.signInWithPassword({ email, password });
-                if (error) authError.innerText = "Error de acceso"; else init();
+                if (error) authError.innerText = "Error de acceso"; 
             }
         }
 
         async function handleLogout() { await _supabase.auth.signOut(); window.location.reload(); }
 
-        // --- LÓGICA DE CÁLCULO ---
         function calcularSaldo(p) { 
             let cap = parseFloat(p.monto_prestado), tasa = (p.tasa_interes || 0) / 100; 
             const pagos = (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago));
@@ -252,13 +295,12 @@
                 if (pg.aplicar_interes) { 
                     const interesPeriodo = cap * tasa; 
                     if (monto >= interesPeriodo) cap -= (monto - interesPeriodo); 
-                    else cap += (interesPeriodo - monto); // Capitalización
+                    else cap += (interesPeriodo - monto); 
                 } else cap -= monto;
             }); 
             return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) }; 
         }
 
-        // --- FUNCIONALIDADES ---
         async function cargarCarteras() {
             const { data: carteras } = await _supabase.from('carteras').select('*');
             if (carteras?.length) {
