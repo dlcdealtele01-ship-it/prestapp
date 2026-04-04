@@ -18,6 +18,7 @@
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         label { display: block; text-align: left; font-weight: 800; text-transform: uppercase; font-size: 10px; color: #94a3b8; margin-bottom: 4px; margin-left: 8px; }
         .tab-active { border-bottom: 3px solid #10b981; color: #0f172a !important; }
+        input:focus { border-color: #10b981 !important; ring: 2px; ring-color: #10b981; }
     </style>
 </head>
 <body class="bg-[#F8FAFC] min-h-screen text-slate-900">
@@ -29,42 +30,62 @@
     </script>
 
     <div id="authScreen" class="hidden min-h-screen flex items-center justify-center p-6 bg-slate-50">
-        <div class="bg-white p-8 rounded-[2.5rem] border card-shadow w-full max-w-sm text-center">
+        <div class="bg-white p-8 rounded-[2.5rem] border card-shadow w-full max-w-sm">
             <div class="flex flex-col items-center mb-8">
                 <div class="flex items-center gap-1">
                     <span class="text-2xl font-extrabold text-slate-950 tracking-tighter uppercase">Prest<span class="text-emerald-500">app</span></span>
                     <i class="ph-fill ph-lightning text-2xl text-amber-400"></i>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase mt-2 italic">by GierelAxel.dev</p>
+                <p id="authSubtitle" class="text-[10px] font-bold text-slate-400 uppercase mt-2 italic tracking-widest text-center">Bienvenido de nuevo</p>
             </div>
 
             <div id="view-auth-main">
-                <div class="space-y-4">
-                    <input type="email" id="authEmail" placeholder="Correo" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none focus:border-emerald-500">
-                    <input type="password" id="authPassword" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none focus:border-emerald-500">
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="handleAuth('login')" class="p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition">Entrar</button>
-                        <button onclick="handleAuth('signup')" class="p-4 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">Registro</button>
+                <div class="space-y-3">
+                    <div id="container-name" class="hidden">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="authName" placeholder="Tu nombre" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label>Correo Electrónico</label>
+                        <input type="email" id="authEmail" placeholder="correo@ejemplo.com" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label>Contraseña</label>
+                        <input type="password" id="authPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
+                    </div>
+
+                    <div id="container-confirm" class="hidden">
+                        <label>Confirmar Contraseña</label>
+                        <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
+                    </div>
+                    
+                    <button id="btnMainAuth" onclick="processAuth()" class="w-full mt-2 p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95 transition">
+                        Entrar al Sistema
+                    </button>
+
+                    <div class="pt-4 text-center">
+                        <p id="toggleText" class="text-[10px] font-bold text-slate-400 uppercase">¿No tienes cuenta?</p>
+                        <button onclick="toggleAuthMode()" id="btnToggleMode" class="text-[11px] font-black text-emerald-600 uppercase hover:underline">
+                            Crear una cuenta ahora
+                        </button>
                     </div>
                 </div>
-                <button onclick="switchAuthView('view-auth-reset')" class="mt-6 text-[10px] font-black text-slate-400 uppercase hover:text-emerald-500 transition-colors">¿Olvidaste tu contraseña?</button>
+                
+                <div id="resetLinkContainer" class="mt-6 text-center">
+                    <button onclick="switchAuthView('view-auth-reset')" class="text-[10px] font-black text-slate-300 uppercase hover:text-slate-500 transition-colors italic">¿Olvidaste tu contraseña?</button>
+                </div>
             </div>
 
             <div id="view-auth-reset" class="hidden">
                 <p class="text-[10px] font-black text-slate-400 uppercase mb-4 text-center">Recuperar acceso</p>
-                <input type="email" id="resetEmailInput" placeholder="Tu correo de registro" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none mb-4 focus:border-emerald-500">
+                <input type="email" id="resetEmailInput" placeholder="Tu correo de registro" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none mb-4">
                 <button onclick="handleResetRequest()" class="w-full p-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition">Enviar Enlace</button>
-                <button onclick="switchAuthView('view-auth-main')" class="mt-4 text-[10px] font-black text-slate-400 uppercase">Volver</button>
+                <button onclick="switchAuthView('view-auth-main')" class="mt-4 w-full text-[10px] font-black text-slate-400 uppercase">Volver</button>
             </div>
 
-            <div id="view-auth-new-pass" class="hidden text-left">
-                <p class="text-[10px] font-black text-emerald-500 uppercase mb-4 text-center tracking-widest italic">Nueva Contraseña Detectada</p>
-                <label>Nueva Contraseña</label>
-                <input type="password" id="newPasswordInput" placeholder="Mínimo 6 caracteres" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none mb-4 focus:border-emerald-500">
-                <button onclick="handleFinalReset()" class="w-full p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition">Actualizar y Entrar</button>
-            </div>
-
-            <p id="authError" class="text-red-500 text-[10px] font-bold mt-4 uppercase leading-tight"></p>
+            <p id="authError" class="text-red-500 text-[10px] font-bold mt-4 uppercase leading-tight text-center"></p>
         </div>
     </div>
 
@@ -187,27 +208,22 @@
 
     <script>
         let currentUser = null, idCarteraActual = null, pActivo = null, modoEdicionForm = false, idPagoAEditar = null, tabActual = 'activos';
+        let isSignUpMode = false;
 
         async function init() {
-            // DETECTAR RECUPERACIÓN ANTES DE CUALQUIER COSA
-            if (window.location.hash.includes('type=recovery')) {
-                document.getElementById('authScreen').classList.remove('hidden');
-                document.getElementById('mainApp').classList.add('hidden');
-                switchAuthView('view-auth-new-pass');
-                return; 
-            }
-
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
                 currentUser = session.user;
-                const { data: perfil, error } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).single();
-                if (error || !perfil || !perfil.aprobado) {
+                // Verificar aprobación (esto requiere una tabla 'perfiles' en tu BD)
+                const { data: perfil } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).single();
+                
+                if (!perfil || !perfil.aprobado) {
                     await _supabase.auth.signOut();
                     document.getElementById('authError').innerText = "Cuenta pendiente de aprobación.";
                     document.getElementById('authScreen').classList.remove('hidden');
-                    document.getElementById('mainApp').classList.add('hidden');
                     return;
                 }
+                
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 await cargarCarteras();
@@ -217,47 +233,74 @@
             }
         }
 
-        // --- AUTH LOGIC ---
-        function switchAuthView(viewId) {
-            ['view-auth-main', 'view-auth-reset', 'view-auth-new-pass'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
-            document.getElementById(viewId).classList.remove('hidden');
+        // --- LÓGICA DE AUTENTICACIÓN DINÁMICA ---
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            const subtitle = document.getElementById('authSubtitle');
+            const btnMain = document.getElementById('btnMainAuth');
+            const btnToggle = document.getElementById('btnToggleMode');
+            const toggleText = document.getElementById('toggleText');
+            const nameField = document.getElementById('container-name');
+            const confirmField = document.getElementById('container-confirm');
+            const resetLink = document.getElementById('resetLinkContainer');
+
+            if (isSignUpMode) {
+                subtitle.innerText = "Crea tu cuenta profesional";
+                btnMain.innerText = "Registrarme";
+                btnToggle.innerText = "Ya tengo cuenta, entrar";
+                toggleText.innerText = "¿Ya eres usuario?";
+                nameField.classList.remove('hidden');
+                confirmField.classList.remove('hidden');
+                resetLink.classList.add('hidden');
+            } else {
+                subtitle.innerText = "Bienvenido de nuevo";
+                btnMain.innerText = "Entrar al Sistema";
+                btnToggle.innerText = "Crear una cuenta ahora";
+                toggleText.innerText = "¿No tienes cuenta?";
+                nameField.classList.add('hidden');
+                confirmField.classList.add('hidden');
+                resetLink.classList.remove('hidden');
+            }
             document.getElementById('authError').innerText = "";
         }
 
-        async function handleAuth(type) {
-            const email = authEmail.value, password = authPassword.value;
-            if (!email || !password) return;
-            let result;
-            if (type === 'signup') {
-                result = await _supabase.auth.signUp({ email, password });
-                if (!result.error) alert("Registro exitoso. Solicita aprobación.");
-            } else {
-                result = await _supabase.auth.signInWithPassword({ email, password });
+        async function processAuth() {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            const name = authName.value;
+            const confirmPass = authConfirmPassword.value;
+
+            if (!email || !password) {
+                authError.innerText = "Faltan datos obligatorios";
+                return;
             }
-            if (result.error) authError.innerText = result.error.message; else init();
+
+            if (isSignUpMode) {
+                if (password !== confirmPass) { authError.innerText = "Las contraseñas no coinciden"; return; }
+                const { data, error } = await _supabase.auth.signUp({ 
+                    email, 
+                    password,
+                    options: { data: { full_name: name } }
+                });
+                if (error) authError.innerText = error.message;
+                else { alert("Registro enviado. Un administrador debe aprobar tu acceso."); toggleAuthMode(); }
+            } else {
+                const { error } = await _supabase.auth.signInWithPassword({ email, password });
+                if (error) authError.innerText = "Credenciales incorrectas o cuenta inactiva";
+                else init();
+            }
+        }
+
+        function switchAuthView(viewId) {
+            ['view-auth-main', 'view-auth-reset'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
         }
 
         async function handleResetRequest() {
             const email = resetEmailInput.value;
-            if (!email) return;
-            const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + window.location.pathname
-            });
+            const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
             if (error) authError.innerText = error.message;
-            else { alert("Enlace enviado. Revisa tu correo."); switchAuthView('view-auth-main'); }
-        }
-
-        async function handleFinalReset() {
-            const newPass = newPasswordInput.value;
-            if (newPass.length < 6) { authError.innerText = "Mínimo 6 caracteres."; return; }
-            const { error } = await _supabase.auth.updateUser({ password: newPass });
-            if (error) authError.innerText = error.message;
-            else {
-                alert("¡Contraseña actualizada!");
-                window.location.hash = ""; window.location.reload();
-            }
+            else { alert("Enlace de recuperación enviado."); switchAuthView('view-auth-main'); }
         }
 
         async function handleLogout() { await _supabase.auth.signOut(); window.location.reload(); }
@@ -305,7 +348,6 @@
             totalCapital.innerText = `$${tCap.toFixed(2)}`; totalIntereses.innerText = `$${tInt.toFixed(2)}`;
         }
 
-        // --- HISTORIAL CON EDICIÓN ---
         async function verHistorial(id) { 
             const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', id).single(); 
             pActivo = p; const calc = calcularSaldo(p); 
@@ -316,7 +358,7 @@
                 <div class="bg-white p-5 rounded-[2rem] border flex justify-between items-center shadow-sm">
                     <div>
                         <p class="text-[9px] font-black text-slate-300 uppercase">${new Date(pg.fecha_pago).toLocaleDateString('es-ES', {timeZone: 'UTC'})}</p>
-                        <p class="text-xl font-black tracking-tight">$${parseFloat(pg.monto_pagado).toFixed(2)} ${!pg.aplicar_interes ? '<span class="text-[10px] text-amber-500"> (Sólo Cap.)</span>' : ''}</p>
+                        <p class="text-xl font-black tracking-tight">$${parseFloat(pg.monto_pagado).toFixed(2)} ${!pg.aplicar_interes ? '<span class="text-[10px] text-amber-500"> (Cap)</span>' : ''}</p>
                     </div>
                     <div class="flex gap-1">
                         <button onclick="abrirReciboVisual(${pg.monto_pagado})" class="text-emerald-500 p-2"><i class="ph-bold ph-whatsapp-logo text-2xl"></i></button>
@@ -336,25 +378,14 @@
         }
 
         async function confirmarPago() { 
-            try {
-                const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
-                const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
-                const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
-                if(idPagoAEditar) { await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); } 
-                else { await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]); }
-                modalPago.close(); 
-                if(pActivo.id) await verHistorial(pActivo.id); else cargarDatos(); 
-                if(!idPagoAEditar) abrirReciboVisual(m); 
-            } catch (err) { alert("Error: " + err.message); }
-        }
-
-        // --- FUNCIONES AUXILIARES ---
-        function filtrarTab(t) { 
-            tabActual = t; 
-            const tA = document.getElementById('tabActivos'), tF = document.getElementById('tabFinalizados');
-            if (t === 'activos') { tA.classList.add('tab-active'); tF.classList.remove('tab-active'); } 
-            else { tF.classList.add('tab-active'); tA.classList.remove('tab-active'); }
-            cargarDatos(); 
+            const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
+            const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
+            const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
+            if(idPagoAEditar) await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar);
+            else await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]);
+            modalPago.close(); 
+            if(pActivo.id) await verHistorial(pActivo.id); else cargarDatos(); 
+            if(!idPagoAEditar) abrirReciboVisual(m); 
         }
 
         function calcularSaldo(p) { 
@@ -382,17 +413,15 @@
         }
 
         async function guardarPrestamo() { 
-            try {
-                if(modoEdicionForm) { 
-                    await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
-                    await _supabase.from('prestamos').update({ monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }).eq('id', pActivo.id); 
-                    modalForm.close(); await verHistorial(pActivo.id); 
-                } else { 
-                    const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); 
-                    if (cl) { await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }]); }
-                    modalForm.close(); cargarDatos(); 
-                } 
-            } catch (err) { alert("Error: " + err.message); }
+            if(modoEdicionForm) { 
+                await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
+                await _supabase.from('prestamos').update({ monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }).eq('id', pActivo.id); 
+                modalForm.close(); await verHistorial(pActivo.id); 
+            } else { 
+                const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); 
+                if (cl) { await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }]); }
+                modalForm.close(); cargarDatos(); 
+            } 
         }
 
         function abrirModalPago(id) { pActivo = {id}; idPagoAEditar = null; pagoTitle.innerText = "Registrar Abono"; montoPago.value = ''; fechaPago.value = new Date().toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = false; modalPago.showModal(); }
@@ -415,6 +444,14 @@
                     if (navigator.share) await navigator.share({ files: [f] });
                 });
             };
+        }
+
+        function filtrarTab(t) { 
+            tabActual = t; 
+            const tA = document.getElementById('tabActivos'), tF = document.getElementById('tabFinalizados');
+            if (t === 'activos') { tA.classList.add('tab-active'); tF.classList.remove('tab-active'); } 
+            else { tF.classList.add('tab-active'); tA.classList.remove('tab-active'); }
+            cargarDatos(); 
         }
 
         async function crearCartera() { if(!nombreNuevaCartera.value) return; await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]); modalCartera.close(); cargarCarteras(); }
