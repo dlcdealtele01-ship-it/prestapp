@@ -19,7 +19,6 @@
         label { display: block; text-align: left; font-weight: 800; text-transform: uppercase; font-size: 10px; color: #94a3b8; margin-bottom: 4px; margin-left: 8px; }
         .tab-active { border-bottom: 3px solid #10b981; color: #0f172a !important; }
         input:focus { border-color: #10b981 !important; ring: 2px; ring-color: #10b981; }
-        /* Estilo para el scrollbar de la lista de clientes */
         #listaSugerenciasClientes::-webkit-scrollbar { width: 4px; }
         #listaSugerenciasClientes::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
@@ -44,22 +43,10 @@
 
             <div id="view-auth-main">
                 <div class="space-y-3">
-                    <div id="container-name" class="hidden">
-                        <label>Nombre Completo</label>
-                        <input type="text" id="authName" placeholder="Tu nombre" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
-                    </div>
-                    <div>
-                        <label>Correo Electrónico</label>
-                        <input type="email" id="authEmail" placeholder="correo@ejemplo.com" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
-                    </div>
-                    <div>
-                        <label>Contraseña</label>
-                        <input type="password" id="authPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
-                    </div>
-                    <div id="container-confirm" class="hidden">
-                        <label>Confirmar Contraseña</label>
-                        <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
-                    </div>
+                    <div id="container-name" class="hidden"><label>Nombre Completo</label><input type="text" id="authName" placeholder="Tu nombre" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all"></div>
+                    <div><label>Correo Electrónico</label><input type="email" id="authEmail" placeholder="correo@ejemplo.com" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all"></div>
+                    <div><label>Contraseña</label><input type="password" id="authPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all"></div>
+                    <div id="container-confirm" class="hidden"><label>Confirmar Contraseña</label><input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all"></div>
                     <button id="btnMainAuth" onclick="processAuth()" class="w-full mt-2 p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95 transition">Entrar al Sistema</button>
                     <div class="pt-4 text-center">
                         <p id="toggleText" class="text-[10px] font-bold text-slate-400 uppercase">¿No tienes cuenta?</p>
@@ -117,9 +104,7 @@
             </div>
 
             <div class="bg-white rounded-[2rem] border overflow-hidden card-shadow">
-                <table class="w-full text-left">
-                    <tbody id="listaPrestamos" class="divide-y divide-slate-50"></tbody>
-                </table>
+                <table class="w-full text-left"><tbody id="listaPrestamos" class="divide-y divide-slate-50"></tbody></table>
             </div>
             <button onclick="abrirModalNuevo()" class="fixed bottom-8 right-8 bg-slate-900 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition z-40"><i class="ph-bold ph-plus text-2xl"></i></button>
         </main>
@@ -140,27 +125,11 @@
         <button onclick="this.closest('dialog').close()" class="absolute top-6 right-6 text-slate-300"><i class="ph-bold ph-x text-xl"></i></button>
         <h3 id="formTitle" class="font-black mb-6 uppercase italic text-xl text-center">Datos Préstamo</h3>
         <div class="space-y-4">
-            <div class="relative">
-                <label>Cliente</label>
-                <input type="text" id="formNombre" autocomplete="off" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all" placeholder="Nombre del cliente" oninput="buscarClientesExistentes(this.value)">
-                <div id="listaSugerenciasClientes" class="hidden absolute z-[100] w-full mt-1 bg-white border rounded-2xl shadow-2xl max-h-48 overflow-y-auto"></div>
-                <input type="hidden" id="formClienteId">
-            </div>
-            <div>
-                <label>Monto</label>
-                <input type="number" id="formMonto" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
-            </div>
+            <div class="relative"><label>Cliente</label><input type="text" id="formNombre" autocomplete="off" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none" placeholder="Nombre" oninput="buscarClientesExistentes(this.value)"><div id="listaSugerenciasClientes" class="hidden absolute z-[100] w-full mt-1 bg-white border rounded-2xl shadow-2xl max-h-48 overflow-y-auto"></div><input type="hidden" id="formClienteId"></div>
+            <div><label>Monto</label><input type="number" id="formMonto" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none"></div>
             <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label>Interés %</label>
-                    <select id="formTasa" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
-                        <option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20" selected>20%</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Gracia (Días)</label>
-                    <input type="number" id="formGracia" value="0" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
-                </div>
+                <div><label>Interés %</label><select id="formTasa" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none"><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20" selected>20%</option></select></div>
+                <div><label>Gracia (Días)</label><input type="number" id="formGracia" value="0" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none"></div>
             </div>
             <button onclick="guardarPrestamo()" class="w-full p-5 bg-emerald-600 text-white rounded-2xl font-black uppercase shadow-lg active:scale-95 transition">Guardar Préstamo</button>
         </div>
@@ -171,10 +140,7 @@
         <h3 id="pagoTitle" class="font-black uppercase mb-4 italic text-slate-400 text-[10px]">Abono</h3>
         <div class="space-y-4 mb-6 text-left">
             <div><label>Fecha</label><input type="date" id="fechaPago" class="w-full p-3 bg-slate-50 border rounded-xl font-bold text-sm outline-none text-center"></div>
-            <div class="flex items-center justify-center gap-2">
-                <input type="checkbox" id="checkTodoCapital" class="accent-slate-900"> 
-                <span class="text-[10px] font-black uppercase text-slate-400">100% Capital</span>
-            </div>
+            <div class="flex items-center justify-center gap-2"><input type="checkbox" id="checkTodoCapital" class="accent-slate-900"><span class="text-[10px] font-black uppercase text-slate-400">100% Capital</span></div>
             <input type="number" id="montoPago" placeholder="0.00" class="w-full p-5 bg-slate-100 rounded-2xl font-black text-3xl text-center outline-none">
         </div>
         <button onclick="confirmarPago()" class="w-full p-5 bg-slate-900 text-white rounded-2xl font-black uppercase shadow-lg">Confirmar</button>
@@ -198,7 +164,7 @@
                     <div class="flex justify-between text-slate-400 font-bold text-[10px]"><span>FECHA</span><span id="reciboFechaSimple" class="text-slate-900"></span></div>
                     <div class="flex justify-between"><span>MONTO RECIBIDO</span><span id="reciboMonto" class="font-black text-emerald-600"></span></div>
                     <div class="flex justify-between"><span>INTERÉS CUBIERTO</span><span id="reciboInteres" class="font-bold text-slate-600"></span></div>
-                    <div class="flex justify-between"><span>ABONO A CAPITAL</span><span id="reciboAbonoCapital" class="font-black"></span></div>
+                    <div class="flex justify-between"><span>MOV. CAPITAL</span><span id="reciboAbonoCapital" class="font-black"></span></div>
                 </div>
                 <div class="mt-4 bg-slate-900 p-4 rounded-2xl text-center">
                     <p class="text-[8px] font-black text-slate-400 uppercase">Saldo Pendiente</p>
@@ -237,97 +203,62 @@
         }
 
         // --- LÓGICA DE AUTENTICACIÓN ---
-        function toggleAuthMode() {
-            isSignUpMode = !isSignUpMode;
-            const subtitle = document.getElementById('authSubtitle');
-            const btnMain = document.getElementById('btnMainAuth');
-            const btnToggle = document.getElementById('btnToggleMode');
-            const toggleText = document.getElementById('toggleText');
-            const nameField = document.getElementById('container-name');
-            const confirmField = document.getElementById('container-confirm');
-            const resetLink = document.getElementById('resetLinkContainer');
-
-            if (isSignUpMode) {
-                subtitle.innerText = "Crea tu cuenta profesional";
-                btnMain.innerText = "Registrarme";
-                btnToggle.innerText = "Ya tengo cuenta, entrar";
-                toggleText.innerText = "¿Ya eres usuario?";
-                nameField.classList.remove('hidden');
-                confirmField.classList.remove('hidden');
-                resetLink.classList.add('hidden');
-            } else {
-                subtitle.innerText = "Bienvenido de nuevo";
-                btnMain.innerText = "Entrar al Sistema";
-                btnToggle.innerText = "Crear una cuenta ahora";
-                toggleText.innerText = "¿No tienes cuenta?";
-                nameField.classList.add('hidden');
-                confirmField.classList.add('hidden');
-                resetLink.classList.remove('hidden');
-            }
+        function switchAuthView(viewId) {
+            document.getElementById('view-auth-main').classList.add('hidden');
+            document.getElementById('view-auth-reset').classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
             document.getElementById('authError').innerText = "";
         }
 
-        async function processAuth() {
-            const email = authEmail.value;
-            const password = authPassword.value;
-            const name = authName.value;
-            const confirmPass = authConfirmPassword.value;
-            if (!email || !password) { authError.innerText = "Faltan datos obligatorios"; return; }
+        async function handleResetRequest() {
+            const email = document.getElementById('resetEmailInput').value;
+            if (!email) { authError.innerText = "Ingresa tu correo"; return; }
+            const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+            if (error) authError.innerText = error.message; 
+            else { alert("Enlace enviado."); switchAuthView('view-auth-main'); }
+        }
+
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            const subtitle = document.getElementById('authSubtitle'), btnMain = document.getElementById('btnMainAuth'), btnToggle = document.getElementById('btnToggleMode'), resetLink = document.getElementById('resetLinkContainer');
             if (isSignUpMode) {
-                if (password !== confirmPass) { authError.innerText = "Las contraseñas no coinciden"; return; }
-                const { error } = await _supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
-                if (error) authError.innerText = error.message;
-                else { alert("Registro enviado. Un administrador debe aprobar tu acceso."); toggleAuthMode(); }
+                subtitle.innerText = "Crea tu cuenta profesional"; btnMain.innerText = "Registrarme"; btnToggle.innerText = "Ya tengo cuenta"; resetLink.classList.add('hidden');
+                document.getElementById('container-name').classList.remove('hidden'); document.getElementById('container-confirm').classList.remove('hidden');
             } else {
-                const { error } = await _supabase.auth.signInWithPassword({ email, password });
-                if (error) authError.innerText = "Credenciales incorrectas o cuenta inactiva";
-                else init();
+                subtitle.innerText = "Bienvenido de nuevo"; btnMain.innerText = "Entrar al Sistema"; btnToggle.innerText = "Crear una cuenta ahora"; resetLink.classList.remove('hidden');
+                document.getElementById('container-name').classList.add('hidden'); document.getElementById('container-confirm').classList.add('hidden');
             }
         }
 
-        function switchAuthView(viewId) {
-            ['view-auth-main', 'view-auth-reset'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            document.getElementById(viewId).classList.remove('hidden');
-        }
-
-        async function handleResetRequest() {
-            const email = resetEmailInput.value;
-            const { error } = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
-            if (error) authError.innerText = error.message;
-            else { alert("Enlace de recuperación enviado."); switchAuthView('view-auth-main'); }
+        async function processAuth() {
+            const email = authEmail.value, password = authPassword.value, name = authName.value;
+            if (isSignUpMode) {
+                const { error } = await _supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+                if (error) authError.innerText = error.message; else { alert("Enviado para aprobación."); toggleAuthMode(); }
+            } else {
+                const { error } = await _supabase.auth.signInWithPassword({ email, password });
+                if (error) authError.innerText = "Error de acceso"; else init();
+            }
         }
 
         async function handleLogout() { await _supabase.auth.signOut(); window.location.reload(); }
 
-        // --- BUSCADOR DE CLIENTES ---
-        async function buscarClientesExistentes(valor) {
-            const lista = document.getElementById('listaSugerenciasClientes');
-            const inputId = document.getElementById('formClienteId');
-            inputId.value = ""; // Resetear ID si el usuario escribe
-            if (valor.length < 2) { lista.classList.add('hidden'); return; }
-
-            clearTimeout(timeoutBusqueda);
-            timeoutBusqueda = setTimeout(async () => {
-                const { data: clientes } = await _supabase.from('clientes').select('id, nombre').eq('cartera_id', idCarteraActual).ilike('nombre', `%${valor}%`).limit(5);
-                if (clientes?.length > 0) {
-                    lista.innerHTML = clientes.map(c => `
-                        <div onclick="seleccionarCliente('${c.id}', '${c.nombre}')" class="p-4 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-none">
-                            <p class="text-[11px] font-black uppercase text-slate-700">${c.nombre}</p>
-                            <span class="text-[8px] font-bold text-emerald-500 uppercase italic">Cliente Existente</span>
-                        </div>
-                    `).join('');
-                    lista.classList.remove('hidden');
-                } else { lista.classList.add('hidden'); }
-            }, 300);
+        // --- LÓGICA DE CÁLCULO ---
+        function calcularSaldo(p) { 
+            let cap = parseFloat(p.monto_prestado), tasa = (p.tasa_interes || 0) / 100; 
+            const pagos = (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago));
+            pagos.forEach(pg => { 
+                const monto = parseFloat(pg.monto_pagado); 
+                if (pg.aplicar_interes) { 
+                    const interesPeriodo = cap * tasa; 
+                    if (monto >= interesPeriodo) cap -= (monto - interesPeriodo); 
+                    else cap += (interesPeriodo - monto); // Capitalización
+                } else cap -= monto;
+            }); 
+            return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) }; 
         }
 
-        function seleccionarCliente(id, nombre) {
-            document.getElementById('formNombre').value = nombre;
-            document.getElementById('formClienteId').value = id;
-            document.getElementById('listaSugerenciasClientes').classList.add('hidden');
-        }
-
-        // --- CARTERAS Y DATOS ---
+        // --- FUNCIONALIDADES ---
         async function cargarCarteras() {
             const { data: carteras } = await _supabase.from('carteras').select('*');
             if (carteras?.length) {
@@ -370,6 +301,70 @@
             totalCapital.innerText = `$${tCap.toFixed(2)}`; totalIntereses.innerText = `$${tInt.toFixed(2)}`;
         }
 
+        async function abrirReciboVisual(m) {
+            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single();
+            const pO = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)); pO.pop();
+            let cP = parseFloat(p.monto_prestado), tD = p.tasa_interes / 100;
+            pO.forEach(pg => { 
+                const ma = parseFloat(pg.monto_pagado); 
+                if (pg.aplicar_interes) { 
+                    const i = cP * tD; 
+                    if (ma >= i) cP -= (ma - i); else cP += (i - ma); 
+                } else cP -= ma; 
+            });
+            const sC = document.getElementById('checkTodoCapital').checked;
+            const iC = sC ? 0 : Math.min(m, cP * tD);
+            const aC = sC ? m : (m - (cP * tD));
+            reciboCliente.innerText = p.clientes.nombre; reciboMonto.innerText = `$${m.toFixed(2)}`;
+            reciboInteres.innerText = `$${iC.toFixed(2)}`;
+            const labelAbono = document.getElementById('reciboAbonoCapital');
+            if (aC < 0) labelAbono.innerHTML = `<span class="text-red-500">+$${Math.abs(aC).toFixed(2)}</span>`;
+            else labelAbono.innerText = `-$${aC.toFixed(2)}`;
+            reciboFechaSimple.innerText = new Date().toLocaleDateString('es-ES'); 
+            reciboSaldo.innerText = `$${Math.max(0, cP - aC).toFixed(2)}`;
+            modalReciboImagen.showModal();
+            btnCompartirWA.onclick = async () => {
+                const canvas = await html2canvas(document.getElementById('areaRecibo'), { backgroundColor: '#F8FAFC', scale: 2 });
+                canvas.toBlob(async (blob) => {
+                    const f = new File([blob], `Recibo_${p.clientes.nombre}.png`, { type: 'image/png' });
+                    if (navigator.share) await navigator.share({ files: [f] });
+                });
+            };
+        }
+
+        async function buscarClientesExistentes(valor) {
+            const lista = document.getElementById('listaSugerenciasClientes');
+            if (valor.length < 2) { lista.classList.add('hidden'); return; }
+            clearTimeout(timeoutBusqueda);
+            timeoutBusqueda = setTimeout(async () => {
+                const { data: clientes } = await _supabase.from('clientes').select('id, nombre').eq('cartera_id', idCarteraActual).ilike('nombre', `%${valor}%`).limit(5);
+                if (clientes?.length) {
+                    lista.innerHTML = clientes.map(c => `<div onclick="seleccionarCliente('${c.id}', '${c.nombre}')" class="p-4 hover:bg-emerald-50 cursor-pointer border-b text-[11px] font-black uppercase">${c.nombre}</div>`).join('');
+                    lista.classList.remove('hidden');
+                } else lista.classList.add('hidden');
+            }, 300);
+        }
+
+        function seleccionarCliente(id, nombre) {
+            document.getElementById('formNombre').value = nombre; document.getElementById('formClienteId').value = id;
+            document.getElementById('listaSugerenciasClientes').classList.add('hidden');
+        }
+
+        async function guardarPrestamo() { 
+            const cid = document.getElementById('formClienteId').value, nom = document.getElementById('formNombre').value, mon = parseFloat(formMonto.value);
+            if (!nom || !mon) return;
+            if(modoEdicionForm) { 
+                await _supabase.from('clientes').update({ nombre: nom }).eq('id', pActivo.cliente_id); 
+                await _supabase.from('prestamos').update({ monto_prestado: mon, tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }).eq('id', pActivo.id); 
+                modalForm.close(); verHistorial(pActivo.id); 
+            } else { 
+                let finalId = cid;
+                if (!finalId) { const { data: cl } = await _supabase.from('clientes').insert([{ nombre: nom, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); if (cl) finalId = cl.id; }
+                await _supabase.from('prestamos').insert([{ cliente_id: finalId, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: mon, tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }]);
+                modalForm.close(); cargarDatos(); 
+            } 
+        }
+
         async function verHistorial(id) { 
             const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', id).single(); 
             pActivo = p; const calc = calcularSaldo(p); 
@@ -389,37 +384,6 @@
                 </div>`).join(''); 
         }
 
-        async function guardarPrestamo() { 
-            const clienteIdExistente = document.getElementById('formClienteId').value;
-            const nombreCliente = document.getElementById('formNombre').value;
-            if (!nombreCliente || !formMonto.value) return;
-
-            if(modoEdicionForm) { 
-                await _supabase.from('clientes').update({ nombre: nombreCliente }).eq('id', pActivo.cliente_id); 
-                await _supabase.from('prestamos').update({ monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }).eq('id', pActivo.id); 
-                modalForm.close(); await verHistorial(pActivo.id); 
-            } else { 
-                let finalClienteId = clienteIdExistente;
-                if (!finalClienteId) {
-                    const { data: cl } = await _supabase.from('clientes').insert([{ nombre: nombreCliente, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single();
-                    if (cl) finalClienteId = cl.id;
-                }
-                if (finalClienteId) { 
-                    await _supabase.from('prestamos').insert([{ cliente_id: finalClienteId, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }]); 
-                }
-                modalForm.close(); cargarDatos(); 
-            } 
-        }
-
-        // --- FUNCIONES AUXILIARES ---
-        function calcularSaldo(p) { 
-            let cap = parseFloat(p.monto_prestado), tasa = p.tasa_interes / 100; 
-            (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)).forEach(pg => { 
-                const m = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cap * tasa; if (m >= i) cap -= (m - i); } else cap -= m; 
-            }); 
-            return { capital: Math.max(0, cap), interes: Math.max(0, cap * tasa) }; 
-        }
-
         function verificarMora(pagos, diasGracia) { 
             const hoy = new Date(), d = hoy.getDate(); 
             const l15 = 15 + parseInt(diasGracia), l30 = 30 + parseInt(diasGracia); 
@@ -427,7 +391,7 @@
             return !pagos?.some(pg => { const fp = new Date(pg.fecha_pago); return fp.getUTCMonth() === hoy.getUTCMonth() && fp.getUTCDate() >= (check === 15 ? 1 : 16); }); 
         }
 
-        function abrirModalNuevo() { modoEdicionForm = false; formTitle.innerText = "Nuevo Préstamo"; formNombre.value = ''; formMonto.value = ''; formTasa.value = '20'; formGracia.value = '0'; document.getElementById('formClienteId').value = ''; modalForm.showModal(); }
+        function abrirModalNuevo() { modoEdicionForm = false; formTitle.innerText = "Nuevo Préstamo"; formNombre.value = ''; formMonto.value = ''; document.getElementById('formClienteId').value = ''; modalForm.showModal(); }
         function abrirModalEditar() { modoEdicionForm = true; formTitle.innerText = "Editar Préstamo"; formNombre.value = pActivo.clientes.nombre; formMonto.value = pActivo.monto_prestado; formTasa.value = pActivo.tasa_interes; formGracia.value = pActivo.dias_gracia || 0; modalForm.showModal(); }
         function abrirModalPago(id) { pActivo = {id}; idPagoAEditar = null; pagoTitle.innerText = "Registrar Abono"; montoPago.value = ''; fechaPago.value = new Date().toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = false; modalPago.showModal(); }
 
@@ -435,53 +399,24 @@
             const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
             const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
             const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
-            if(idPagoAEditar) await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar);
-            else await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]);
-            modalPago.close(); 
-            if(pActivo.id && viewHistorial.classList.contains('hidden') === false) await verHistorial(pActivo.id); else cargarDatos(); 
+            if(idPagoAEditar) await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); else await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]);
+            modalPago.close(); if(!viewHistorial.classList.contains('hidden')) await verHistorial(pActivo.id); else cargarDatos(); 
             if(!idPagoAEditar) abrirReciboVisual(m); 
-        }
-
-        async function abrirReciboVisual(m) {
-            const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single();
-            const pO = p.pagos.sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)); pO.pop();
-            let cP = parseFloat(p.monto_prestado), tD = p.tasa_interes / 100;
-            pO.forEach(pg => { const ma = parseFloat(pg.monto_pagado); if (pg.aplicar_interes) { const i = cP * tD; if (ma >= i) cP -= (ma - i); } else cP -= ma; });
-            const sC = document.getElementById('checkTodoCapital').checked;
-            const iC = sC ? 0 : Math.min(m, cP * tD), aC = sC ? m : Math.max(0, m - (cP * tD));
-            reciboCliente.innerText = p.clientes.nombre; reciboMonto.innerText = `$${m.toFixed(2)}`;
-            reciboInteres.innerText = `$${iC.toFixed(2)}`; reciboAbonoCapital.innerText = `$${aC.toFixed(2)}`;
-            reciboFechaSimple.innerText = new Date().toLocaleDateString('es-ES'); reciboSaldo.innerText = `$${Math.max(0, cP - aC).toFixed(2)}`;
-            modalReciboImagen.showModal();
-            btnCompartirWA.onclick = async () => {
-                const canvas = await html2canvas(document.getElementById('areaRecibo'), { backgroundColor: '#F8FAFC', scale: 2 });
-                canvas.toBlob(async (blob) => {
-                    const f = new File([blob], `Recibo_${p.clientes.nombre}.png`, { type: 'image/png' });
-                    if (navigator.share) await navigator.share({ files: [f] });
-                });
-            };
         }
 
         function filtrarTab(t) { 
             tabActual = t; 
-            const tA = document.getElementById('tabActivos'), tF = document.getElementById('tabFinalizados');
-            if (t === 'activos') { tA.classList.add('tab-active'); tF.classList.remove('tab-active'); } 
-            else { tF.classList.add('tab-active'); tA.classList.remove('tab-active'); }
+            document.getElementById('tabActivos').classList.toggle('tab-active', t === 'activos');
+            document.getElementById('tabFinalizados').classList.toggle('tab-active', t === 'finalizados');
             cargarDatos(); 
         }
 
         async function crearCartera() { if(!nombreNuevaCartera.value) return; await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]); modalCartera.close(); cargarCarteras(); }
-        async function eliminarPago(id) { if(confirm("¿Eliminar pago?")) { await _supabase.from('pagos').delete().eq('id', id); verHistorial(pActivo.id); } }
-        async function eliminarPrestamoCompleto() { if(confirm("¿Eliminar préstamo?")) { await _supabase.from('prestamos').delete().eq('id', pActivo.id); cerrarHistorial(); } }
+        async function eliminarPago(id) { if(confirm("¿Eliminar?")) { await _supabase.from('pagos').delete().eq('id', id); verHistorial(pActivo.id); } }
+        async function eliminarPrestamoCompleto() { if(confirm("¿Eliminar?")) { await _supabase.from('prestamos').delete().eq('id', pActivo.id); cerrarHistorial(); } }
         function cerrarHistorial() { viewHistorial.classList.add('hidden'); viewDashboard.classList.remove('hidden'); cargarDatos(); }
         function cambiarCartera(id) { idCarteraActual = id; cargarDatos(); }
         function editarPago(id, m, f, ai) { idPagoAEditar = id; pagoTitle.innerText = "Editar Abono"; montoPago.value = m; fechaPago.value = f; document.getElementById('checkTodoCapital').checked = !ai; modalPago.showModal(); }
-
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#formNombre') && !e.target.closest('#listaSugerenciasClientes')) {
-                document.getElementById('listaSugerenciasClientes').classList.add('hidden');
-            }
-        });
 
         window.onload = init;
     </script>
