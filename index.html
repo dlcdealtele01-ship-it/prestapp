@@ -173,6 +173,7 @@
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
                 currentUser = session.user;
+                // Verificamos perfil aprobado
                 const { data: perfil, error } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).single();
                 if (error || !perfil || !perfil.aprobado) {
                     await _supabase.auth.signOut();
@@ -245,12 +246,10 @@
             totalCapital.innerText = `$${tCap.toFixed(2)}`; totalIntereses.innerText = `$${tInt.toFixed(2)}`;
         }
 
-        // CORRECCIÓN: Función filtrarTab ahora actualiza el CSS
         function filtrarTab(t) { 
             tabActual = t; 
             const tA = document.getElementById('tabActivos');
             const tF = document.getElementById('tabFinalizados');
-            
             if (t === 'activos') {
                 tA.classList.add('tab-active'); tA.classList.remove('text-slate-400');
                 tF.classList.remove('tab-active'); tF.classList.add('text-slate-400');
@@ -274,32 +273,74 @@
         }
 
         async function guardarPrestamo() { 
-            if(modoEdicionForm) { 
-                await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
-                await _supabase.from('prestamos').update({ monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }).eq('id', pActivo.id); 
-                modalForm.close();
-                await verHistorial(pActivo.id); 
-            } else { 
-                const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); 
-                if (cl) {
-                    await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: formMonto.value, tasa_interes: formTasa.value, dias_gracia: formGracia.value }]); 
-                }
-                modalForm.close(); 
-                cargarDatos(); 
-            } 
+            try {
+                if(modoEdicionForm) { 
+                    await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
+                    await _supabase.from('prestamos').update({ 
+                        monto_prestado: parseFloat(formMonto.value), 
+                        tasa_interes: parseInt(formTasa.value), 
+                        dias_gracia: parseInt(formGracia.value) 
+                    }).eq('id', pActivo.id); 
+                    modalForm.close();
+                    await verHistorial(pActivo.id); 
+                } else { 
+                    const { data: cl, error: e1 } = await _supabase.from('clientes').insert([{ 
+                        nombre: formNombre.value, 
+                        user_id: currentUser.id, 
+                        cartera_id: idCarteraActual 
+                    }]).select().single(); 
+                    
+                    if (e1) throw e1;
+                    if (cl) {
+                        const { error: e2 } = await _supabase.from('prestamos').insert([{ 
+                            cliente_id: cl.id, 
+                            cartera_id: idCarteraActual, 
+                            user_id: currentUser.id, 
+                            monto_prestado: parseFloat(formMonto.value), 
+                            tasa_interes: parseInt(formTasa.value), 
+                            dias_gracia: parseInt(formGracia.value) 
+                        }]);
+                        if (e2) throw e2;
+                    }
+                    modalForm.close(); 
+                    cargarDatos(); 
+                } 
+            } catch (err) {
+                console.error(err);
+                alert("Error al guardar: " + err.message);
+            }
         }
 
         function abrirModalPago(id) { pActivo = {id}; idPagoAEditar = null; pagoTitle.innerText = "Registrar Abono"; montoPago.value = ''; fechaPago.value = new Date().toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = false; modalPago.showModal(); }
-        function abrirEditarPago(id, monto, aplicaInt, fecha) { pActivo = {id: pActivo.id}; idPagoAEditar = id; pagoTitle.innerText = "Editar Pago"; montoPago.value = monto; fechaPago.value = new Date(fecha).toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = !aplicaInt; modalPago.showModal(); }
+        
+        function abrirEditarPago(id, monto, aplicaInt, fecha) { 
+            pActivo = {id: pActivo.id}; 
+            idPagoAEditar = id; 
+            pagoTitle.innerText = "Editar Pago"; 
+            montoPago.value = monto; 
+            fechaPago.value = new Date(fecha).toISOString().split('T')[0]; 
+            document.getElementById('checkTodoCapital').checked = !aplicaInt; 
+            modalPago.showModal(); 
+        }
         
         async function confirmarPago() { 
-            const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
-            const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
-            const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
-            if(idPagoAEditar) await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); 
-            else await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]); 
-            modalPago.close(); if(pActivo.id) await verHistorial(pActivo.id); else cargarDatos(); 
-            if(!idPagoAEditar) abrirReciboVisual(m); 
+            try {
+                const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
+                const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
+                const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
+                
+                if(idPagoAEditar) {
+                    await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar); 
+                } else {
+                    await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]); 
+                }
+                
+                modalPago.close(); 
+                if(pActivo.id) await verHistorial(pActivo.id); else cargarDatos(); 
+                if(!idPagoAEditar) abrirReciboVisual(m); 
+            } catch (err) {
+                alert("Error en pago: " + err.message);
+            }
         }
 
         function calcularSaldo(p) { 
@@ -355,7 +396,11 @@
             };
         }
 
-        async function crearCartera() { if(!nombreNuevaCartera.value) return; await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]); modalCartera.close(); cargarCarteras(); }
+        async function crearCartera() { 
+            if(!nombreNuevaCartera.value) return; 
+            await _supabase.from('carteras').insert([{ nombre: nombreNuevaCartera.value, user_id: currentUser.id }]); 
+            modalCartera.close(); cargarCarteras(); 
+        }
         async function eliminarPago(id) { if(confirm("¿Eliminar pago?")) { await _supabase.from('pagos').delete().eq('id', id); verHistorial(pActivo.id); } }
         async function eliminarPrestamoCompleto() { if(confirm("¿Eliminar préstamo?")) { await _supabase.from('prestamos').delete().eq('id', pActivo.id); cerrarHistorial(); } }
         function cerrarHistorial() { viewHistorial.classList.add('hidden'); viewDashboard.classList.remove('hidden'); cargarDatos(); }
