@@ -19,6 +19,9 @@
         label { display: block; text-align: left; font-weight: 800; text-transform: uppercase; font-size: 10px; color: #94a3b8; margin-bottom: 4px; margin-left: 8px; }
         .tab-active { border-bottom: 3px solid #10b981; color: #0f172a !important; }
         input:focus { border-color: #10b981 !important; ring: 2px; ring-color: #10b981; }
+        /* Estilo para el scrollbar de la lista de clientes */
+        #listaSugerenciasClientes::-webkit-scrollbar { width: 4px; }
+        #listaSugerenciasClientes::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-[#F8FAFC] min-h-screen text-slate-900">
@@ -45,34 +48,24 @@
                         <label>Nombre Completo</label>
                         <input type="text" id="authName" placeholder="Tu nombre" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
                     </div>
-
                     <div>
                         <label>Correo Electrónico</label>
                         <input type="email" id="authEmail" placeholder="correo@ejemplo.com" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
                     </div>
-
                     <div>
                         <label>Contraseña</label>
                         <input type="password" id="authPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
                     </div>
-
                     <div id="container-confirm" class="hidden">
                         <label>Confirmar Contraseña</label>
                         <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all">
                     </div>
-                    
-                    <button id="btnMainAuth" onclick="processAuth()" class="w-full mt-2 p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95 transition">
-                        Entrar al Sistema
-                    </button>
-
+                    <button id="btnMainAuth" onclick="processAuth()" class="w-full mt-2 p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95 transition">Entrar al Sistema</button>
                     <div class="pt-4 text-center">
                         <p id="toggleText" class="text-[10px] font-bold text-slate-400 uppercase">¿No tienes cuenta?</p>
-                        <button onclick="toggleAuthMode()" id="btnToggleMode" class="text-[11px] font-black text-emerald-600 uppercase hover:underline">
-                            Crear una cuenta ahora
-                        </button>
+                        <button onclick="toggleAuthMode()" id="btnToggleMode" class="text-[11px] font-black text-emerald-600 uppercase hover:underline">Crear una cuenta ahora</button>
                     </div>
                 </div>
-                
                 <div id="resetLinkContainer" class="mt-6 text-center">
                     <button onclick="switchAuthView('view-auth-reset')" class="text-[10px] font-black text-slate-300 uppercase hover:text-slate-500 transition-colors italic">¿Olvidaste tu contraseña?</button>
                 </div>
@@ -84,7 +77,6 @@
                 <button onclick="handleResetRequest()" class="w-full p-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition">Enviar Enlace</button>
                 <button onclick="switchAuthView('view-auth-main')" class="mt-4 w-full text-[10px] font-black text-slate-400 uppercase">Volver</button>
             </div>
-
             <p id="authError" class="text-red-500 text-[10px] font-bold mt-4 uppercase leading-tight text-center"></p>
         </div>
     </div>
@@ -144,19 +136,33 @@
         </main>
     </div>
 
-    <dialog id="modalForm" class="rounded-[2rem] p-8 w-full max-w-sm border-none relative">
+    <dialog id="modalForm" class="rounded-[2rem] p-8 w-full max-w-sm border-none relative overflow-visible">
         <button onclick="this.closest('dialog').close()" class="absolute top-6 right-6 text-slate-300"><i class="ph-bold ph-x text-xl"></i></button>
         <h3 id="formTitle" class="font-black mb-6 uppercase italic text-xl text-center">Datos Préstamo</h3>
         <div class="space-y-4">
-            <div><label>Cliente</label><input type="text" id="formNombre" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none"></div>
-            <div><label>Monto</label><input type="number" id="formMonto" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none"></div>
-            <div class="grid grid-cols-2 gap-2">
-                <div><label>Interés %</label><select id="formTasa" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
-                    <option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20" selected>20%</option>
-                </select></div>
-                <div><label>Gracia (Días)</label><input type="number" id="formGracia" value="0" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none"></div>
+            <div class="relative">
+                <label>Cliente</label>
+                <input type="text" id="formNombre" autocomplete="off" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none transition-all" placeholder="Nombre del cliente" oninput="buscarClientesExistentes(this.value)">
+                <div id="listaSugerenciasClientes" class="hidden absolute z-[100] w-full mt-1 bg-white border rounded-2xl shadow-2xl max-h-48 overflow-y-auto"></div>
+                <input type="hidden" id="formClienteId">
             </div>
-            <button onclick="guardarPrestamo()" class="w-full p-5 bg-emerald-600 text-white rounded-2xl font-black uppercase">Guardar</button>
+            <div>
+                <label>Monto</label>
+                <input type="number" id="formMonto" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label>Interés %</label>
+                    <select id="formTasa" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
+                        <option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20" selected>20%</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Gracia (Días)</label>
+                    <input type="number" id="formGracia" value="0" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none">
+                </div>
+            </div>
+            <button onclick="guardarPrestamo()" class="w-full p-5 bg-emerald-600 text-white rounded-2xl font-black uppercase shadow-lg active:scale-95 transition">Guardar Préstamo</button>
         </div>
     </dialog>
 
@@ -208,22 +214,19 @@
 
     <script>
         let currentUser = null, idCarteraActual = null, pActivo = null, modoEdicionForm = false, idPagoAEditar = null, tabActual = 'activos';
-        let isSignUpMode = false;
+        let isSignUpMode = false, timeoutBusqueda = null;
 
         async function init() {
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
                 currentUser = session.user;
-                // Verificar aprobación (esto requiere una tabla 'perfiles' en tu BD)
                 const { data: perfil } = await _supabase.from('perfiles').select('aprobado').eq('id', currentUser.id).single();
-                
                 if (!perfil || !perfil.aprobado) {
                     await _supabase.auth.signOut();
                     document.getElementById('authError').innerText = "Cuenta pendiente de aprobación.";
                     document.getElementById('authScreen').classList.remove('hidden');
                     return;
                 }
-                
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 await cargarCarteras();
@@ -233,7 +236,7 @@
             }
         }
 
-        // --- LÓGICA DE AUTENTICACIÓN DINÁMICA ---
+        // --- LÓGICA DE AUTENTICACIÓN ---
         function toggleAuthMode() {
             isSignUpMode = !isSignUpMode;
             const subtitle = document.getElementById('authSubtitle');
@@ -269,19 +272,10 @@
             const password = authPassword.value;
             const name = authName.value;
             const confirmPass = authConfirmPassword.value;
-
-            if (!email || !password) {
-                authError.innerText = "Faltan datos obligatorios";
-                return;
-            }
-
+            if (!email || !password) { authError.innerText = "Faltan datos obligatorios"; return; }
             if (isSignUpMode) {
                 if (password !== confirmPass) { authError.innerText = "Las contraseñas no coinciden"; return; }
-                const { data, error } = await _supabase.auth.signUp({ 
-                    email, 
-                    password,
-                    options: { data: { full_name: name } }
-                });
+                const { error } = await _supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
                 if (error) authError.innerText = error.message;
                 else { alert("Registro enviado. Un administrador debe aprobar tu acceso."); toggleAuthMode(); }
             } else {
@@ -304,6 +298,34 @@
         }
 
         async function handleLogout() { await _supabase.auth.signOut(); window.location.reload(); }
+
+        // --- BUSCADOR DE CLIENTES ---
+        async function buscarClientesExistentes(valor) {
+            const lista = document.getElementById('listaSugerenciasClientes');
+            const inputId = document.getElementById('formClienteId');
+            inputId.value = ""; // Resetear ID si el usuario escribe
+            if (valor.length < 2) { lista.classList.add('hidden'); return; }
+
+            clearTimeout(timeoutBusqueda);
+            timeoutBusqueda = setTimeout(async () => {
+                const { data: clientes } = await _supabase.from('clientes').select('id, nombre').eq('cartera_id', idCarteraActual).ilike('nombre', `%${valor}%`).limit(5);
+                if (clientes?.length > 0) {
+                    lista.innerHTML = clientes.map(c => `
+                        <div onclick="seleccionarCliente('${c.id}', '${c.nombre}')" class="p-4 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-none">
+                            <p class="text-[11px] font-black uppercase text-slate-700">${c.nombre}</p>
+                            <span class="text-[8px] font-bold text-emerald-500 uppercase italic">Cliente Existente</span>
+                        </div>
+                    `).join('');
+                    lista.classList.remove('hidden');
+                } else { lista.classList.add('hidden'); }
+            }, 300);
+        }
+
+        function seleccionarCliente(id, nombre) {
+            document.getElementById('formNombre').value = nombre;
+            document.getElementById('formClienteId').value = id;
+            document.getElementById('listaSugerenciasClientes').classList.add('hidden');
+        }
 
         // --- CARTERAS Y DATOS ---
         async function cargarCarteras() {
@@ -353,7 +375,6 @@
             pActivo = p; const calc = calcularSaldo(p); 
             viewDashboard.classList.add('hidden'); viewHistorial.classList.remove('hidden'); 
             histNombre.innerText = p.clientes.nombre; histSaldo.innerText = `Saldo: $${calc.capital.toFixed(2)}`; 
-            
             listaPagosHistorial.innerHTML = (p.pagos || []).sort((a,b) => new Date(b.fecha_pago) - new Date(a.fecha_pago)).map(pg => `
                 <div class="bg-white p-5 rounded-[2rem] border flex justify-between items-center shadow-sm">
                     <div>
@@ -368,26 +389,29 @@
                 </div>`).join(''); 
         }
 
-        function editarPago(id, monto, fecha, aplicaInteres) {
-            idPagoAEditar = id;
-            pagoTitle.innerText = "Editar Abono";
-            montoPago.value = monto;
-            fechaPago.value = fecha;
-            document.getElementById('checkTodoCapital').checked = !aplicaInteres;
-            modalPago.showModal();
+        async function guardarPrestamo() { 
+            const clienteIdExistente = document.getElementById('formClienteId').value;
+            const nombreCliente = document.getElementById('formNombre').value;
+            if (!nombreCliente || !formMonto.value) return;
+
+            if(modoEdicionForm) { 
+                await _supabase.from('clientes').update({ nombre: nombreCliente }).eq('id', pActivo.cliente_id); 
+                await _supabase.from('prestamos').update({ monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }).eq('id', pActivo.id); 
+                modalForm.close(); await verHistorial(pActivo.id); 
+            } else { 
+                let finalClienteId = clienteIdExistente;
+                if (!finalClienteId) {
+                    const { data: cl } = await _supabase.from('clientes').insert([{ nombre: nombreCliente, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single();
+                    if (cl) finalClienteId = cl.id;
+                }
+                if (finalClienteId) { 
+                    await _supabase.from('prestamos').insert([{ cliente_id: finalClienteId, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }]); 
+                }
+                modalForm.close(); cargarDatos(); 
+            } 
         }
 
-        async function confirmarPago() { 
-            const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
-            const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
-            const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
-            if(idPagoAEditar) await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar);
-            else await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]);
-            modalPago.close(); 
-            if(pActivo.id) await verHistorial(pActivo.id); else cargarDatos(); 
-            if(!idPagoAEditar) abrirReciboVisual(m); 
-        }
-
+        // --- FUNCIONES AUXILIARES ---
         function calcularSaldo(p) { 
             let cap = parseFloat(p.monto_prestado), tasa = p.tasa_interes / 100; 
             (p.pagos || []).sort((a,b) => new Date(a.fecha_pago) - new Date(b.fecha_pago)).forEach(pg => { 
@@ -403,28 +427,20 @@
             return !pagos?.some(pg => { const fp = new Date(pg.fecha_pago); return fp.getUTCMonth() === hoy.getUTCMonth() && fp.getUTCDate() >= (check === 15 ? 1 : 16); }); 
         }
 
-        function abrirModalNuevo() { modoEdicionForm = false; formTitle.innerText = "Nuevo Préstamo"; formNombre.value = ''; formMonto.value = ''; formTasa.value = '20'; formGracia.value = '0'; modalForm.showModal(); }
-        
-        function abrirModalEditar() { 
-            modoEdicionForm = true; formTitle.innerText = "Editar Préstamo"; 
-            formNombre.value = pActivo.clientes.nombre; formMonto.value = pActivo.monto_prestado; 
-            formTasa.value = pActivo.tasa_interes; formGracia.value = pActivo.dias_gracia || 0; 
-            modalForm.showModal(); 
-        }
-
-        async function guardarPrestamo() { 
-            if(modoEdicionForm) { 
-                await _supabase.from('clientes').update({ nombre: formNombre.value }).eq('id', pActivo.cliente_id); 
-                await _supabase.from('prestamos').update({ monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }).eq('id', pActivo.id); 
-                modalForm.close(); await verHistorial(pActivo.id); 
-            } else { 
-                const { data: cl } = await _supabase.from('clientes').insert([{ nombre: formNombre.value, user_id: currentUser.id, cartera_id: idCarteraActual }]).select().single(); 
-                if (cl) { await _supabase.from('prestamos').insert([{ cliente_id: cl.id, cartera_id: idCarteraActual, user_id: currentUser.id, monto_prestado: parseFloat(formMonto.value), tasa_interes: parseInt(formTasa.value), dias_gracia: parseInt(formGracia.value) }]); }
-                modalForm.close(); cargarDatos(); 
-            } 
-        }
-
+        function abrirModalNuevo() { modoEdicionForm = false; formTitle.innerText = "Nuevo Préstamo"; formNombre.value = ''; formMonto.value = ''; formTasa.value = '20'; formGracia.value = '0'; document.getElementById('formClienteId').value = ''; modalForm.showModal(); }
+        function abrirModalEditar() { modoEdicionForm = true; formTitle.innerText = "Editar Préstamo"; formNombre.value = pActivo.clientes.nombre; formMonto.value = pActivo.monto_prestado; formTasa.value = pActivo.tasa_interes; formGracia.value = pActivo.dias_gracia || 0; modalForm.showModal(); }
         function abrirModalPago(id) { pActivo = {id}; idPagoAEditar = null; pagoTitle.innerText = "Registrar Abono"; montoPago.value = ''; fechaPago.value = new Date().toISOString().split('T')[0]; document.getElementById('checkTodoCapital').checked = false; modalPago.showModal(); }
+
+        async function confirmarPago() { 
+            const m = parseFloat(montoPago.value), f = fechaPago.value; if(!m || !f) return; 
+            const aplicaInt = !document.getElementById('checkTodoCapital').checked; 
+            const datos = { monto_pagado: m, aplicar_interes: aplicaInt, fecha_pago: f, user_id: currentUser.id }; 
+            if(idPagoAEditar) await _supabase.from('pagos').update(datos).eq('id', idPagoAEditar);
+            else await _supabase.from('pagos').insert([{ ...datos, prestamo_id: pActivo.id }]);
+            modalPago.close(); 
+            if(pActivo.id && viewHistorial.classList.contains('hidden') === false) await verHistorial(pActivo.id); else cargarDatos(); 
+            if(!idPagoAEditar) abrirReciboVisual(m); 
+        }
 
         async function abrirReciboVisual(m) {
             const { data: p } = await _supabase.from('prestamos').select('*, clientes(*), pagos(*)').eq('id', pActivo.id).single();
@@ -459,7 +475,14 @@
         async function eliminarPrestamoCompleto() { if(confirm("¿Eliminar préstamo?")) { await _supabase.from('prestamos').delete().eq('id', pActivo.id); cerrarHistorial(); } }
         function cerrarHistorial() { viewHistorial.classList.add('hidden'); viewDashboard.classList.remove('hidden'); cargarDatos(); }
         function cambiarCartera(id) { idCarteraActual = id; cargarDatos(); }
-        
+        function editarPago(id, m, f, ai) { idPagoAEditar = id; pagoTitle.innerText = "Editar Abono"; montoPago.value = m; fechaPago.value = f; document.getElementById('checkTodoCapital').checked = !ai; modalPago.showModal(); }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#formNombre') && !e.target.closest('#listaSugerenciasClientes')) {
+                document.getElementById('listaSugerenciasClientes').classList.add('hidden');
+            }
+        });
+
         window.onload = init;
     </script>
 </body>
